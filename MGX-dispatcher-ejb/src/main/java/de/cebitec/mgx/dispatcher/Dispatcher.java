@@ -1,7 +1,7 @@
 package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
-import de.cebitec.mgx.dto.JobDTO.JobState;
+import de.cebitec.mgx.dto.dto.JobDTO.JobState;
 import java.util.HashMap;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
