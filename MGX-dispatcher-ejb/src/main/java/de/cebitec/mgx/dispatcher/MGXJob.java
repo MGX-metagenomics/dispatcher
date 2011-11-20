@@ -1,14 +1,14 @@
 package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
-import de.cebitec.mgx.dto.JobDTO.JobState;
+import de.cebitec.mgx.dto.dto.JobDTO.JobState;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -54,7 +54,7 @@ public class MGXJob implements Runnable {
 
     private void execute() {
         // build up command string
-        List<String> commands = new LinkedList<String>();
+        List<String> commands = new ArrayList<String>();
         commands.add(dispatcher.getConfig().getConveyorExecutable());
         commands.add(conveyorGraph);
         commands.add(projName);
