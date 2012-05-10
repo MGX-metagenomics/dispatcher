@@ -3,11 +3,7 @@ package de.cebitec.mgx.dispatcher;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import de.cebitec.mgx.dto.dto.JobDTO.JobState;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,19 +14,21 @@ import java.util.List;
 public class MGXJob implements Runnable {
 
     //
-    private Integer queueId;
-    private Long mgxJobId;
+    private int queueId;
+    private long mgxJobId;
     private String projName;
     private String conveyorGraph;
     private int priority;
     private Dispatcher dispatcher;
+    private Connection pconn = null;
 
-    public MGXJob(Dispatcher d, String projName, Long mgxJobId) throws MGXDispatcherException {
+    public MGXJob(Dispatcher d, String projName, long mgxJobId) throws MGXDispatcherException {
         dispatcher = d;
         this.projName = projName;
         this.mgxJobId = mgxJobId;
-        conveyorGraph = lookupGraphFile(projName, mgxJobId);
         priority = 500;
+        pconn = getProjectConnection(projName);
+        conveyorGraph = lookupGraphFile(projName, mgxJobId);
     }
 
     @Override
@@ -54,11 +52,11 @@ public class MGXJob implements Runnable {
 
     private void execute() {
         // build up command string
-        List<String> commands = new ArrayList<String>();
+        List<String> commands = new ArrayList<>();
         commands.add(dispatcher.getConfig().getConveyorExecutable());
         commands.add(conveyorGraph);
         commands.add(projName);
-        commands.add(mgxJobId.toString());
+        commands.add(String.valueOf(mgxJobId));
 
         StringBuilder cmd = new StringBuilder();
         for (String s : commands) {
@@ -72,28 +70,35 @@ public class MGXJob implements Runnable {
             setState(JobState.RUNNING);
             setStartDate();
 
+            // disconnect from database
+            pconn.close();
+            pconn = null;
+
+            Process p = null;
+            int exitCode = -1;
             try {
-                Process p = Runtime.getRuntime().exec(commands.toArray(new String[0]));
-                try {
-                    int exitCode = p.waitFor();
-                    if (exitCode == 0) {
-                        setState(JobState.FINISHED);
-                    } else {
-                        setState(JobState.FAILED);
-                    }
-                    setFinishDate();
-                } catch (InterruptedException ex) {
-                    setState(JobState.ABORTED);
-                } finally {
-                    p.destroy();
-                }
-            } catch (IOException ex) {
+                p = Runtime.getRuntime().exec(commands.toArray(new String[0]));
+                exitCode = p.waitFor();
+            } catch (IOException | InterruptedException ex) {
                 dispatcher.log(ex.getMessage());
+                pconn = getProjectConnection(projName);
+                setState(JobState.ABORTED);
                 setFinishDate();
-                setState(JobState.FAILED);
+                return;
+            } finally {
+                p.destroy();
             }
 
-        } catch (MGXDispatcherException ex) {
+            // reconnect to database
+            pconn = getProjectConnection(projName);
+            if (exitCode == 0) {
+                setFinished();
+            } else {
+                setState(JobState.FAILED);
+            }
+            setFinishDate();
+
+        } catch (MGXDispatcherException | SQLException ex) {
             dispatcher.log(ex.getMessage());
         }
 
@@ -101,30 +106,52 @@ public class MGXJob implements Runnable {
     }
 
     private void delete() {
+        PreparedStatement stmt = null;
         try {
+            pconn.setAutoCommit(false);
 
             // remove observations
-            Connection pconn = getProjectConnection(projName);
-            String sql = String.format("DELETE FROM observation WHERE jobid=%s", mgxJobId.toString());
-            Statement s = pconn.createStatement();
-            s.executeUpdate(sql);
-            s.close();
+            stmt = pconn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)");
+            stmt.setLong(1, mgxJobId);
+            stmt.execute();
+            stmt.close();
+
+            // remove observations
+            stmt = pconn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)");
+            stmt.setLong(1, mgxJobId);
+            stmt.execute();
+            stmt.close();
+
+
+            // remove attributes
+            stmt = pconn.prepareStatement("DELETE FROM attribute WHERE job_id=?");
+            stmt.setLong(1, mgxJobId);
+            stmt.execute();
+            stmt.close();
 
             /*
-             * we can't delete orphan attributes, since there might be other analysis jobs
-             * running that rely on them; there's a short period of time between attribute
-             * creation and referencing the attribute in the observation table
+             * we can't delete orphan attributetypes, since there might be other
+             * analysis jobs running that rely on them; there's a short period
+             * of time between attributetype creation and referencing the
+             * attributetype in the attribute table
              */
 
             // delete the job
-            sql = String.format("DELETE FROM job WHERE id=%s", mgxJobId.toString());
-            s = pconn.createStatement();
-            s.executeUpdate(sql);
-            s.close();
+            stmt = pconn.prepareStatement("DELETE FROM job WHERE id=?");
+            stmt.setLong(1, mgxJobId);
+            stmt.execute();
 
-            pconn.close();
+            pconn.commit();
+            pconn.setAutoCommit(true);
         } catch (Exception ex) {
+            try {
+                pconn.rollback();
+            } catch (SQLException ex1) {
+                dispatcher.log(ex1.getMessage());
+            }
             dispatcher.log(ex.getMessage());
+        } finally {
+            close(stmt, null);
         }
     }
 
@@ -132,7 +159,7 @@ public class MGXJob implements Runnable {
         return conveyorGraph;
     }
 
-    public Long getMgxJobId() {
+    public long getMgxJobId() {
         return mgxJobId;
     }
 
@@ -148,7 +175,7 @@ public class MGXJob implements Runnable {
         return projName;
     }
 
-    public Integer getQueueId() {
+    public int getQueueId() {
         return queueId;
     }
 
@@ -157,81 +184,121 @@ public class MGXJob implements Runnable {
     }
 
     public void setStartDate() throws MGXDispatcherException {
-        Connection pconn = getProjectConnection(projName);
-        String sql = String.format("UPDATE job SET startdate=NOW() WHERE id=%s", mgxJobId.toString());
+        PreparedStatement stmt = null;
         try {
-            Statement s = pconn.createStatement();
-            s.executeUpdate(sql);
-            s.close();
-            pconn.close();
+            stmt = pconn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?");
+            stmt.setLong(1, mgxJobId);
+            stmt.executeUpdate();
         } catch (SQLException ex) {
+            throw new MGXDispatcherException(ex.getMessage());
+        } finally {
+            close(stmt, null);
         }
     }
 
     public void setFinishDate() throws MGXDispatcherException {
-        Connection pconn = getProjectConnection(projName);
-        String sql = String.format("UPDATE job SET finishdate=NOW() WHERE id=%s", mgxJobId.toString());
+        PreparedStatement stmt = null;
         try {
-            Statement s = pconn.createStatement();
-            s.executeUpdate(sql);
-            s.close();
-            pconn.close();
+            stmt = pconn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?");
+            stmt.setLong(1, mgxJobId);
+            stmt.executeUpdate();
         } catch (SQLException ex) {
+            throw new MGXDispatcherException(ex.getMessage());
+        } finally {
+            close(stmt, null);
         }
     }
 
     public void setState(JobState state) throws MGXDispatcherException {
-        Connection pconn = getProjectConnection(projName);
-        String sql = String.format("UPDATE job SET job_state=%d WHERE id=%s", state.ordinal(), mgxJobId.toString());
+        PreparedStatement stmt = null;
+        String sql = "UPDATE job SET job_state=? WHERE id=?";
         try {
-            Statement s = pconn.createStatement();
-            s.executeUpdate(sql);
-            s.close();
-            pconn.close();
+            stmt = pconn.prepareStatement(sql);
+            stmt.setLong(1, state.ordinal());
+            stmt.setLong(2, mgxJobId);
+            stmt.executeUpdate();
         } catch (SQLException ex) {
             throw new MGXDispatcherException(ex.getMessage());
+        } finally {
+            close(stmt, null);
         }
     }
 
     public JobState getState() throws MGXDispatcherException {
-        Connection pconn = getProjectConnection(projName);
-        String sql = String.format("SELECT job_state FROM job WHERE id=%s", mgxJobId.toString());
-        Integer state = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+        String sql = "SELECT job_state FROM job WHERE id=?";
+        int state = -1;
+
         try {
-            Statement s = pconn.createStatement();
-            ResultSet rs = s.executeQuery(sql);
+            stmt = pconn.prepareStatement(sql);
+            stmt.setLong(1, mgxJobId);
+            rs = stmt.executeQuery();
             if (rs.next()) {
                 state = rs.getInt(1);
             }
-            rs.close();
-            s.close();
-            pconn.close();
         } catch (SQLException ex) {
             dispatcher.log(ex.getMessage());
+        } finally {
+            close(stmt, rs);
         }
         return JobState.values()[state];
     }
 
-    private String lookupGraphFile(String projName, Long jobId) throws MGXDispatcherException {
+    private String lookupGraphFile(String projName, long jobId) throws MGXDispatcherException {
         String file = null;
-        Connection pconn = getProjectConnection(projName);
-
-        String sql = String.format("SELECT Tool.xml_file FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=%s;", jobId.toString());
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+        String sql = "SELECT Tool.xml_file FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
 
         try {
-            Statement stmt = pconn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql);
+            stmt = pconn.prepareStatement(sql);
+            stmt.setLong(1, jobId);
+            rs = stmt.executeQuery();
             if (rs.next()) {
                 file = rs.getString(1);
             }
-            rs.close();
-            stmt.close();
-            pconn.close();
         } catch (SQLException ex) {
             dispatcher.log(ex.getMessage());
+        } finally {
+            close(stmt, rs);
         }
 
         return file;
+    }
+
+    private void setFinished() {
+
+        PreparedStatement stmt = null;
+        try {
+            // set the job to finished state
+            pconn.setAutoCommit(false);
+            stmt = pconn.prepareStatement("UPDATE job SET job_state=? WHERE id=?");
+            stmt.setLong(1, JobState.FINISHED.ordinal());
+            stmt.setLong(2, mgxJobId);
+            stmt.execute();
+
+            // create assignment counts for attributes belonging to this job
+            String sql = "INSERT INTO attributecount "
+                    + "SELECT attribute.id, count(attribute.id) FROM attribute "
+                    + "LEFT JOIN observation ON (attribute.id = observation.attributeid) "
+                    + "WHERE job_id=? GROUP BY attribute.id ORDER BY attribute.id";
+            stmt = pconn.prepareStatement(sql);
+            stmt.setLong(1, mgxJobId);
+            stmt.execute();
+
+            pconn.commit();
+            pconn.setAutoCommit(true);
+        } catch (Exception ex) {
+            try {
+                pconn.rollback();
+            } catch (SQLException ex1) {
+                dispatcher.log(ex1.getMessage());
+            }
+            dispatcher.log(ex.getMessage());
+        } finally {
+            close(stmt, null);
+        }
     }
 
     private Connection getProjectConnection(String projName) throws MGXDispatcherException {
@@ -244,8 +311,23 @@ public class MGXJob implements Runnable {
         try {
             Class.forName(cfg.getMGXDriverClass());
             c = DriverManager.getConnection(url, cfg.getMGXUser(), cfg.getMGXPassword());
-        } catch (Exception e) {
+        } catch (ClassNotFoundException | SQLException ex) {
+            dispatcher.log(ex.getMessage());
         }
+        assert c != null;
         return c;
+    }
+
+    protected void close(Statement s, ResultSet r) {
+        try {
+            if (r != null) {
+                r.close();
+            }
+            if (s != null) {
+                s.close();
+            }
+        } catch (SQLException ex) {
+            dispatcher.log(ex.getMessage());
+        }
     }
 }

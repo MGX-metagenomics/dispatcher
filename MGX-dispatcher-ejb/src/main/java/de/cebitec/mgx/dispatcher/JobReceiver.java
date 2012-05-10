@@ -1,8 +1,8 @@
 package de.cebitec.mgx.dispatcher;
 
-import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import de.cebitec.mgx.dispatcher.common.DispatcherCommand;
 import de.cebitec.mgx.dispatcher.common.JobReceiverI;
+import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import javax.annotation.Resource;
 import javax.ejb.Remote;
 import javax.ejb.Startup;
