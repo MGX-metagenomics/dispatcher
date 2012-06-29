@@ -12,9 +12,9 @@ public class GPMSHelper {
     protected DispatcherConfiguration config;
     protected Dispatcher dispatcher;
 
-    public GPMSHelper(Dispatcher disp) {
+    public GPMSHelper(Dispatcher disp, DispatcherConfiguration cfg) {
         dispatcher = disp;
-        config = disp.getConfig();
+        config = cfg;
     }
 
     public String getJDBCURLforProject(String projName) throws MGXDispatcherException {

@@ -20,10 +20,12 @@ public class MGXJob implements Runnable {
     private String conveyorGraph;
     private int priority;
     private Dispatcher dispatcher;
+    private DispatcherConfiguration config;
     private Connection pconn = null;
 
-    public MGXJob(Dispatcher d, String projName, long mgxJobId) throws MGXDispatcherException {
+    public MGXJob(Dispatcher d, DispatcherConfiguration cfg, String projName, long mgxJobId) throws MGXDispatcherException {
         dispatcher = d;
+        config = cfg;
         this.projName = projName;
         this.mgxJobId = mgxJobId;
         priority = 500;
@@ -53,7 +55,7 @@ public class MGXJob implements Runnable {
     private void execute() {
         // build up command string
         List<String> commands = new ArrayList<>();
-        commands.add(dispatcher.getConfig().getConveyorExecutable());
+        commands.add(config.getConveyorExecutable());
         commands.add(conveyorGraph);
         commands.add(projName);
         commands.add(String.valueOf(mgxJobId));
@@ -302,15 +304,13 @@ public class MGXJob implements Runnable {
     }
 
     private Connection getProjectConnection(String projName) throws MGXDispatcherException {
-        GPMSHelper gpms = new GPMSHelper(dispatcher);
+        GPMSHelper gpms = new GPMSHelper(dispatcher, config);
         String url = gpms.getJDBCURLforProject(projName);
-
-        DispatcherConfiguration cfg = dispatcher.getConfig();
 
         Connection c = null;
         try {
-            Class.forName(cfg.getMGXDriverClass());
-            c = DriverManager.getConnection(url, cfg.getMGXUser(), cfg.getMGXPassword());
+            Class.forName(config.getMGXDriverClass());
+            c = DriverManager.getConnection(url, config.getMGXUser(), config.getMGXPassword());
         } catch (ClassNotFoundException | SQLException ex) {
             dispatcher.log(ex.getMessage());
         }

@@ -19,15 +19,17 @@ public class JobReceiver implements JobReceiverI {
 
     @Resource(lookup = "java:global/MGX-dispatcher-ear/MGX-dispatcher-ejb/Dispatcher")
     protected Dispatcher dispatcher;
-    
+    @Resource(lookup = "java:global/MGX-dispatcher-ear/MGX-dispatcher-ejb/DispatcherConfiguration")
+    private DispatcherConfiguration config;
+
     public JobReceiver() {
     }
 
     @Override
     public void submit(DispatcherCommand c, String projName, Long mgxJobId) throws MGXDispatcherException {
 
-        MGXJob job = new MGXJob(dispatcher, projName, mgxJobId);
-        
+        MGXJob job = new MGXJob(dispatcher, config, projName, mgxJobId);
+
         switch (c) {
             case EXECUTE:
                 dispatcher.createJob(job);

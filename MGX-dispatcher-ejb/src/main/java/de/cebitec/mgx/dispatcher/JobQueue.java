@@ -98,7 +98,7 @@ public class JobQueue {
             stmt.close();
 
             if ((queueId != -1) && (projName != null) && (mgxJobId != -1)) {
-                job = new MGXJob(dispatcher, projName, mgxJobId);
+                job = new MGXJob(dispatcher, config, projName, mgxJobId);
                 job.setQueueId(queueId);
             }
 

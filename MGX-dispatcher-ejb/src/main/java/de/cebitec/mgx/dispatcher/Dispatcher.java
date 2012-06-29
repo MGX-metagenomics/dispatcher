@@ -32,7 +32,7 @@ public class Dispatcher {
     @PostConstruct
     public void init() throws MGXDispatcherException {
         log("Starting MGX dispatcher");
-        activeJobs = new HashMap<Long, Future<?>>();
+        activeJobs = new HashMap<>();
         int queueSize = queue.NumEntries();
         queueMode = false;
         log("%d jobs in queue, execution limited to max %d parallel jobs", queueSize, config.getMaxJobs());
@@ -111,6 +111,12 @@ public class Dispatcher {
                 }
             } else {
                 log("All slots busy, not scheduling additional jobs.");
+                return;
+//                try {
+//                    Thread.sleep(1000*60);
+//                } catch (InterruptedException ex) {
+//                    Logger.getLogger(Dispatcher.class.getName()).log(Level.SEVERE, null, ex);
+//                }
             }
         }
     }
@@ -122,10 +128,6 @@ public class Dispatcher {
             log("Resuming job scheduling.");
             scheduleJobs();
         }
-    }
-
-    public DispatcherConfiguration getConfig() {
-        return config;
     }
 
     public void log(String msg) {
