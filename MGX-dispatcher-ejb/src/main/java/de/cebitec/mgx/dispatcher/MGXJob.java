@@ -283,7 +283,7 @@ public class MGXJob implements Runnable {
             // create assignment counts for attributes belonging to this job
             String sql = "INSERT INTO attributecount "
                     + "SELECT attribute.id, count(attribute.id) FROM attribute "
-                    + "LEFT JOIN observation ON (attribute.id = observation.attributeid) "
+                    + "LEFT JOIN observation ON (attribute.id = observation.attr_id) "
                     + "WHERE job_id=? GROUP BY attribute.id ORDER BY attribute.id";
             stmt = pconn.prepareStatement(sql);
             stmt.setLong(1, mgxJobId);

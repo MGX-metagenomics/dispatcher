@@ -15,7 +15,7 @@ public class ThreadPoolExecutor extends java.util.concurrent.ThreadPoolExecutor 
     protected static final int defaultMaximumPoolSize = 10;
     protected static final long defaultKeepAliveTime = 10;
     protected static final TimeUnit defaultTimeUnit = TimeUnit.MINUTES;
-    protected static final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>();
+    protected static final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
     protected static ThreadPoolExecutor instance;
 
     private ThreadPoolExecutor() {
