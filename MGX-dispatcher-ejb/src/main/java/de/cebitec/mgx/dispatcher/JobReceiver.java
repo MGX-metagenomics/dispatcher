@@ -26,7 +26,7 @@ public class JobReceiver implements JobReceiverI {
     }
 
     @Override
-    public void submit(DispatcherCommand c, String projName, Long mgxJobId) throws MGXDispatcherException {
+    public void submit(DispatcherCommand c, String projName, long mgxJobId) throws MGXDispatcherException {
 
         MGXJob job = new MGXJob(dispatcher, config, projName, mgxJobId);
 

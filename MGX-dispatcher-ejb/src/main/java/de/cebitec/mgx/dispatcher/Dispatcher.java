@@ -30,7 +30,7 @@ public class Dispatcher {
     private boolean queueMode;
 
     @PostConstruct
-    public void init() throws MGXDispatcherException {
+    public void init() {
         log("Starting MGX dispatcher");
         activeJobs = new HashMap<>();
         int queueSize = queue.NumEntries();
@@ -81,8 +81,8 @@ public class Dispatcher {
         // job might be queued or running, so we cancel it, just in case
         cancelJob(job);
 
-        job.setState(JobState.IN_DELETION);
-        queue.createJob(job);
+//        job.setState(JobState.IN_DELETION);
+//        queue.createJob(job);
         scheduleJobs();
     }
 
