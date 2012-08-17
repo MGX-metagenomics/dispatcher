@@ -6,5 +6,5 @@ package de.cebitec.mgx.dispatcher.common;
  */
 public interface JobReceiverI {
 
-    void submit(DispatcherCommand c, String projName, Long id) throws MGXDispatcherException;
+    void submit(DispatcherCommand c, String projName, long jobId) throws MGXDispatcherException;
 }
