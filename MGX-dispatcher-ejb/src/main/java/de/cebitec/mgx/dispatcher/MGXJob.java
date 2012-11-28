@@ -2,6 +2,7 @@ package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import de.cebitec.mgx.dto.dto.JobDTO.JobState;
+import java.io.File;
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
@@ -300,6 +301,28 @@ public class MGXJob implements Runnable {
             dispatcher.log(ex.getMessage());
         } finally {
             close(stmt, null);
+        }
+
+        /*
+         * remove stdout/stderr files for finished jobs; keep
+         * them for debugging purposes, otherwise
+         */
+        StringBuilder sb = new StringBuilder()
+                .append(config.getMGXPersistentDir())
+                .append(File.pathSeparator)
+                .append(projName)
+                .append(File.pathSeparator)
+                .append("jobs")
+                .append(File.pathSeparator)
+                .append(String.valueOf(mgxJobId))
+                .append(".");
+        File stdout = new File(sb.toString() + "stdout");
+        if (stdout.exists()) {
+            stdout.delete();
+        }
+        File stderr = new File(sb.toString() + "stderr");
+        if (stderr.exists()) {
+            stderr.delete();
         }
     }
 
