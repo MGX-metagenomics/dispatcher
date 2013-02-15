@@ -12,53 +12,59 @@ import java.util.List;
  *
  * @author sjaenick
  */
-public class MGXJob implements Runnable {
+public class MGXJob extends JobI {
 
-    //
+    // internal dispatcher queue id
     private int queueId;
-    private long mgxJobId;
-    private String projName;
+    // project-specific job id
+    private final long mgxJobId;
+    private final String projectName;
     private String conveyorGraph;
     private int priority;
-    private Dispatcher dispatcher;
-    private DispatcherConfiguration config;
+    private final Dispatcher dispatcher;
+    private final DispatcherConfiguration config;
     private Connection pconn = null;
 
-    public MGXJob(Dispatcher d, DispatcherConfiguration cfg, String projName, long mgxJobId) throws MGXDispatcherException {
-        dispatcher = d;
-        config = cfg;
-        this.projName = projName;
+    public MGXJob(Dispatcher disp, DispatcherConfiguration dispCfg, String projName, long mgxJobId) throws MGXDispatcherException {
+        super(disp);
+        dispatcher = disp;
+        config = dispCfg;
+        this.projectName = projName;
         this.mgxJobId = mgxJobId;
         priority = 500;
         pconn = getProjectConnection(projName);
         conveyorGraph = lookupGraphFile(projName, mgxJobId);
     }
 
-    @Override
-    public void run() {
-        JobState state = null;
-        try {
-            state = getState();
-        } catch (MGXDispatcherException ex) {
-            dispatcher.log(ex.getMessage());
-            return;
-        }
-
-        if (state == JobState.IN_DELETION) {
-            this.delete();
-        } else {
-            this.execute();
-        }
-
-        dispatcher.handleExitingJob(this);
+//    @Override
+//    public void run() {
+//        JobState state;
+//        try {
+//            state = getState();
+//        } catch (MGXDispatcherException ex) {
+//            dispatcher.log(ex.getMessage());
+//            return;
+//        }
+//
+//        if (state == JobState.IN_DELETION) {
+//            delete();
+//        } else {
+//            process();
+//        }
+//
+//        dispatcher.handleExitingJob(this);
+//    }
+    
+    public void prepare() {
+        //
     }
 
-    private void execute() {
+    public void process() {
         // build up command string
         List<String> commands = new ArrayList<>();
         commands.add(config.getConveyorExecutable());
         commands.add(conveyorGraph);
-        commands.add(projName);
+        commands.add(projectName);
         commands.add(String.valueOf(mgxJobId));
 
         StringBuilder cmd = new StringBuilder();
@@ -84,7 +90,7 @@ public class MGXJob implements Runnable {
                 exitCode = p.waitFor();
             } catch (IOException | InterruptedException ex) {
                 dispatcher.log(ex.getMessage());
-                pconn = getProjectConnection(projName);
+                pconn = getProjectConnection(projectName);
                 setState(JobState.ABORTED);
                 setFinishDate();
                 return;
@@ -93,9 +99,9 @@ public class MGXJob implements Runnable {
             }
 
             // reconnect to database
-            pconn = getProjectConnection(projName);
+            pconn = getProjectConnection(projectName);
             if (exitCode == 0) {
-                setFinished();
+                finished();
             } else {
                 setState(JobState.FAILED);
             }
@@ -104,11 +110,60 @@ public class MGXJob implements Runnable {
         } catch (MGXDispatcherException | SQLException ex) {
             dispatcher.log(ex.getMessage());
         }
-
-
     }
 
-    private void delete() {
+    public void failed() {
+        PreparedStatement stmt = null;
+        try {
+            pconn.setAutoCommit(false);
+
+            // remove observations
+            stmt = pconn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)");
+            stmt.setLong(1, mgxJobId);
+            stmt.execute();
+            stmt.close();
+
+            // remove observations
+            stmt = pconn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)");
+            stmt.setLong(1, mgxJobId);
+            stmt.execute();
+            stmt.close();
+
+
+            // remove attributes
+            stmt = pconn.prepareStatement("DELETE FROM attribute WHERE job_id=?");
+            stmt.setLong(1, mgxJobId);
+            stmt.execute();
+            stmt.close();
+
+            /*
+             * we can't delete orphan attributetypes, since there might be other
+             * analysis jobs running that rely on them; there's a short period
+             * of time between attributetype creation and referencing the
+             * attributetype in the attribute table
+             */
+
+            // mark job failed
+            stmt = pconn.prepareStatement("UPDATE job SET job_state=? WHERE id=?");
+            stmt.setLong(1, JobState.FAILED.ordinal());
+            stmt.setLong(2, mgxJobId);
+            stmt.execute();
+
+            pconn.commit();
+            pconn.setAutoCommit(true);
+        } catch (Exception ex) {
+            dispatcher.log(ex.getMessage());
+            try {
+                pconn.rollback();
+            } catch (SQLException ex1) {
+                dispatcher.log(ex1.getMessage());
+            }
+        } finally {
+            close(stmt, null);
+        }
+    }
+
+    public void delete() {
         PreparedStatement stmt = null;
         try {
             pconn.setAutoCommit(false);
@@ -158,35 +213,28 @@ public class MGXJob implements Runnable {
         }
     }
 
-    public String getConveyorGraph() {
+    private String getConveyorGraph() {
         return conveyorGraph;
     }
 
-    public long getMgxJobId() {
+    @Override
+    public long getProjectJobID() {
         return mgxJobId;
     }
 
-    public int getPriority() {
-        return priority;
-    }
-
-    public void setPriority(int prio) {
-        priority = prio;
-    }
-
     public String getProjectName() {
-        return projName;
+        return projectName;
     }
 
     public int getQueueId() {
         return queueId;
     }
 
-    public void setQueueId(Integer qId) {
+    public void setQueueId(int qId) {
         queueId = qId;
     }
 
-    public void setStartDate() throws MGXDispatcherException {
+    private void setStartDate() throws MGXDispatcherException {
         PreparedStatement stmt = null;
         try {
             stmt = pconn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?");
@@ -199,7 +247,7 @@ public class MGXJob implements Runnable {
         }
     }
 
-    public void setFinishDate() throws MGXDispatcherException {
+    private void setFinishDate() throws MGXDispatcherException {
         PreparedStatement stmt = null;
         try {
             stmt = pconn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?");
@@ -212,7 +260,7 @@ public class MGXJob implements Runnable {
         }
     }
 
-    public void setState(JobState state) throws MGXDispatcherException {
+    public void setState(JobState state) {
         PreparedStatement stmt = null;
         String sql = "UPDATE job SET job_state=? WHERE id=?";
         try {
@@ -221,13 +269,13 @@ public class MGXJob implements Runnable {
             stmt.setLong(2, mgxJobId);
             stmt.executeUpdate();
         } catch (SQLException ex) {
-            throw new MGXDispatcherException(ex.getMessage());
         } finally {
             close(stmt, null);
         }
     }
 
-    public JobState getState() throws MGXDispatcherException {
+    @Override
+    public JobState getState() {
         PreparedStatement stmt = null;
         ResultSet rs = null;
         String sql = "SELECT job_state FROM job WHERE id=?";
@@ -270,7 +318,8 @@ public class MGXJob implements Runnable {
         return file;
     }
 
-    private void setFinished() {
+    @Override
+    public void finished() {
 
         PreparedStatement stmt = null;
         try {
@@ -310,7 +359,7 @@ public class MGXJob implements Runnable {
         StringBuilder sb = new StringBuilder()
                 .append(config.getMGXPersistentDir())
                 .append(File.pathSeparator)
-                .append(projName)
+                .append(projectName)
                 .append(File.pathSeparator)
                 .append("jobs")
                 .append(File.pathSeparator)

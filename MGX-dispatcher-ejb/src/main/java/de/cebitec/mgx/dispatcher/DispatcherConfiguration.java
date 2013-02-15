@@ -96,6 +96,10 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
         return config.getProperty("mgx_conveyor_graphrun");
     }
 
+    public String getValidatorExecutable() {
+        return config.getProperty("mgx_conveyor_graphvalidate");
+    }
+
     public String getMGXPersistentDir() {
         return config.getProperty("mgx_persistent_dir");
     }
@@ -108,7 +112,7 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
         } catch (UnknownHostException ex) {
             throw new MGXDispatcherException(ex);
         }
-        
+
 
         Properties p = new Properties();
         p.put("mgx_dispatcherhost", hostname);

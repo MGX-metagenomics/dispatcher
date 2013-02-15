@@ -31,6 +31,9 @@ public class JobReceiver implements JobReceiverI {
         MGXJob job = new MGXJob(dispatcher, config, projName, mgxJobId);
 
         switch (c) {
+//            case VERIFY:
+//                dispatcher.verify(job);
+//                break;
             case EXECUTE:
                 dispatcher.createJob(job);
                 break;

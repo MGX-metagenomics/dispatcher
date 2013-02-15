@@ -2,6 +2,8 @@ package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.sql.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
@@ -23,10 +25,14 @@ public class JobQueue {
     protected Connection jobqueue = null;
 
     @PostConstruct
-    public void init() throws ClassNotFoundException, SQLException {
-        Class.forName(config.getJobQueueDriverClass());
-        jobqueue = DriverManager.getConnection("jdbc:sqlite:" + config.getJobQueueFilename());
-        createJobQueue();
+    public void init() {
+        try {
+            Class.forName(config.getJobQueueDriverClass());
+            jobqueue = DriverManager.getConnection("jdbc:sqlite:" + config.getJobQueueFilename());
+            createJobQueue();
+        } catch (ClassNotFoundException | SQLException ex) {
+            Logger.getLogger(JobQueue.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @PreDestroy
@@ -34,7 +40,7 @@ public class JobQueue {
         jobqueue.close();
     }
 
-    public int createJob(MGXJob job) throws MGXDispatcherException {
+    public int createJob(JobI job) throws MGXDispatcherException {
 
         /*
          * create new job entry in the dispatcher queue
@@ -45,7 +51,7 @@ public class JobQueue {
             //sql = String.format(sql, job.getProjectName(), job.getMgxJobId(), job.getPriority());
             PreparedStatement stmt = jobqueue.prepareStatement(sql);
             stmt.setString(1, job.getProjectName());
-            stmt.setLong(2, job.getMgxJobId());
+            stmt.setLong(2, job.getProjectJobID());
             stmt.setInt(3, job.getPriority());
             stmt.executeUpdate();
 
@@ -61,18 +67,18 @@ public class JobQueue {
             throw new MGXDispatcherException(ex.getMessage());
         }
         if (queueId != -1) {
-            job.setQueueId(queueId);
+            job.setQueueID(queueId);
             return queueId;
         }
         throw new MGXDispatcherException("No queue ID returned.");
     }
 
-    public void removeJob(MGXJob job) {
+    public void removeJob(JobI job) {
         try {
             String sql = "DELETE FROM jobqueue WHERE project=? AND mgxjob_id=?";
             PreparedStatement stmt = jobqueue.prepareStatement(sql);
             stmt.setString(1, job.getProjectName());
-            stmt.setLong(2, job.getMgxJobId());
+            stmt.setLong(2, job.getProjectJobID());
             stmt.executeUpdate();
             stmt.close();
         } catch (SQLException ex) {
@@ -80,11 +86,11 @@ public class JobQueue {
         }
     }
 
-    public MGXJob nextJob() {
+    public JobI nextJob() {
         int queueId = -1;
         String projName = null;
         long mgxJobId = -1;
-        MGXJob job = null;
+        JobI job = null;
         String sql = "SELECT id, project, mgxjob_id FROM jobqueue ORDER BY priority ASC LIMIT 1";
         try {
             PreparedStatement stmt = jobqueue.prepareStatement(sql);
@@ -99,20 +105,20 @@ public class JobQueue {
 
             if ((queueId != -1) && (projName != null) && (mgxJobId != -1)) {
                 job = new MGXJob(dispatcher, config, projName, mgxJobId);
-                job.setQueueId(queueId);
+                job.setQueueID(queueId);
             }
 
             // delete the job from the dispatcher queue
             if (job != null) {
                 removeJob(job);
             }
-        } catch (Exception ex) {
+        } catch (SQLException | MGXDispatcherException ex) {
         }
 
         return job;
     }
 
-    public int NumEntries() {
+    public int size() {
         int ret = 0;
         try {
             Statement stmt = jobqueue.createStatement();
