@@ -22,6 +22,7 @@
     <modules>
     <module>MGX-dispatcher-ear</module>
     <module>MGX-dispatcher-ejb</module>
+    <module>MGX-dispatcher-web</module>
     <module>MGX-dispatcher-common</module>
   </modules>
 </project>
