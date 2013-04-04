@@ -6,7 +6,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import javax.annotation.Resource;
+import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 
@@ -18,9 +18,9 @@ import javax.ejb.Startup;
 @Startup
 public class JobQueue {
 
-    @Resource(lookup = "java:global/MGX-dispatcher-ear/MGX-dispatcher-ejb/DispatcherConfiguration")
+    @EJB
     protected DispatcherConfiguration config;
-    @Resource(lookup = "java:global/MGX-dispatcher-ear/MGX-dispatcher-ejb/Dispatcher")
+    @EJB
     protected Dispatcher dispatcher;
     protected Connection jobqueue = null;
 

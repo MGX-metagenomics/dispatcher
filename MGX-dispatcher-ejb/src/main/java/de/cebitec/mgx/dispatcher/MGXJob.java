@@ -1,7 +1,7 @@
 package de.cebitec.mgx.dispatcher;
 
+import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
-import de.cebitec.mgx.dto.dto.JobDTO.JobState;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
@@ -54,11 +54,12 @@ public class MGXJob extends JobI {
 //
 //        dispatcher.handleExitingJob(this);
 //    }
-    
+    @Override
     public void prepare() {
         //
     }
 
+    @Override
     public void process() {
         // build up command string
         List<String> commands = new ArrayList<>();
@@ -95,7 +96,9 @@ public class MGXJob extends JobI {
                 setFinishDate();
                 return;
             } finally {
-                p.destroy();
+                if (p != null) {
+                    p.destroy();
+                }
             }
 
             // reconnect to database
@@ -112,6 +115,7 @@ public class MGXJob extends JobI {
         }
     }
 
+    @Override
     public void failed() {
         PreparedStatement stmt = null;
         try {
@@ -163,6 +167,7 @@ public class MGXJob extends JobI {
         }
     }
 
+    @Override
     public void delete() {
         PreparedStatement stmt = null;
         try {
@@ -213,7 +218,8 @@ public class MGXJob extends JobI {
         }
     }
 
-    private String getConveyorGraph() {
+    @Override
+    public String getConveyorGraph() {
         return conveyorGraph;
     }
 
@@ -222,6 +228,7 @@ public class MGXJob extends JobI {
         return mgxJobId;
     }
 
+    @Override
     public String getProjectName() {
         return projectName;
     }
@@ -260,6 +267,7 @@ public class MGXJob extends JobI {
         }
     }
 
+    @Override
     public void setState(JobState state) {
         PreparedStatement stmt = null;
         String sql = "UPDATE job SET job_state=? WHERE id=?";

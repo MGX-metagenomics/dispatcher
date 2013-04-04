@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Properties;
+import java.util.UUID;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.ejb.Singleton;
@@ -23,9 +24,10 @@ import javax.ejb.Startup;
 public class DispatcherConfiguration extends DispatcherConfigBase {
 
     protected Properties config;
+    private UUID authToken;
 
     @PostConstruct
-    public void create() throws MGXDispatcherException {
+    public void create() {
         StringBuilder cfgFile = new StringBuilder(System.getProperty("user.dir"));
         cfgFile.append(File.separator);
         cfgFile.append("mgx_dispatcher.properties");
@@ -38,8 +40,10 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
             config.load(in);
             in.close();
         } catch (Exception ex) {
-            throw new MGXDispatcherException(ex);
+            //throw new MGXDispatcherException(ex);
         }
+        
+        authToken = UUID.randomUUID();
 
         // write dispatcher host file
         writeDispatcherHostFile();
@@ -103,26 +107,30 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
     public String getMGXPersistentDir() {
         return config.getProperty("mgx_persistent_dir");
     }
+    
+    public UUID getAuthToken() {
+        return authToken;
+    }
 
-    private void writeDispatcherHostFile() throws MGXDispatcherException {
+    private void writeDispatcherHostFile()  {
         String hostname = null;
         try {
             InetAddress addr = InetAddress.getLocalHost();
             hostname = addr.getHostName();
         } catch (UnknownHostException ex) {
-            throw new MGXDispatcherException(ex);
+           // throw new MGXDispatcherException(ex);
         }
 
 
         Properties p = new Properties();
         p.put("mgx_dispatcherhost", hostname);
+        p.put("mgx_dispatchertoken", authToken.toString());
 
         try {
             FileOutputStream fos = new FileOutputStream(dispatcherHostFile);
             p.store(fos, null);
             fos.close();
         } catch (IOException ex) {
-            throw new MGXDispatcherException(ex);
         }
     }
 }

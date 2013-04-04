@@ -1,55 +1,47 @@
 package de.cebitec.mgx.dispatcher;
 
-import de.cebitec.mgx.dispatcher.common.DispatcherCommand;
-import de.cebitec.mgx.dispatcher.common.JobReceiverI;
+import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
-import javax.annotation.Resource;
-import javax.ejb.Remote;
+import java.util.UUID;
+import javax.ejb.EJB;
+import javax.ejb.Singleton;
 import javax.ejb.Startup;
-import javax.ejb.Stateless;
 
 /**
  *
  * @author sjaenick
  */
-@Stateless
+@Singleton
 @Startup
-@Remote
-public class JobReceiver implements JobReceiverI {
+public class JobReceiver {
 
-    @Resource(lookup = "java:global/MGX-dispatcher-ear/MGX-dispatcher-ejb/Dispatcher")
+    @EJB
     protected Dispatcher dispatcher;
-    @Resource(lookup = "java:global/MGX-dispatcher-ear/MGX-dispatcher-ejb/DispatcherConfiguration")
+    @EJB
     private DispatcherConfiguration config;
 
-    public JobReceiver() {
+    public boolean submit(String projName, long mgxJobId) throws MGXDispatcherException {
+        JobI job = new MGXJob(dispatcher, config, projName, mgxJobId);
+        assert job.getState().equals(JobState.SUBMITTED);
+        return dispatcher.createJob(job);
     }
 
-    @Override
-    public void submit(DispatcherCommand c, String projName, long mgxJobId) throws MGXDispatcherException {
+    public boolean validate(String projName, long jobId) throws MGXDispatcherException {
+        JobI job = new MGXJob(dispatcher, config, projName, jobId);
+        return dispatcher.validate(job);
+    }
 
-        MGXJob job = new MGXJob(dispatcher, config, projName, mgxJobId);
+    public void delete(String projName, long jobId) throws MGXDispatcherException {
+        JobI job = new MGXJob(dispatcher, config, projName, jobId);
+        dispatcher.deleteJob(job);
+    }
 
-        switch (c) {
-//            case VERIFY:
-//                dispatcher.verify(job);
-//                break;
-            case EXECUTE:
-                dispatcher.createJob(job);
-                break;
-            case CANCEL:
-                dispatcher.cancelJob(job);
-                break;
-            case DELETE:
-                dispatcher.deleteJob(job);
-                break;
-            case SHUTDOWN:
-                dispatcher.shutdown();
-                break;
-            default:
-                dispatcher.log("Received unknown command {0}", c);
-                break;
-        }
+    public void cancel(String projName, long jobId) throws MGXDispatcherException {
+        JobI job = new MGXJob(dispatcher, config, projName, jobId);
+        dispatcher.cancelJob(job);
+    }
 
+    public boolean shutdown(UUID auth) {
+        return dispatcher.shutdown(auth);
     }
 }

@@ -45,11 +45,12 @@
             <artifactId>glassfish-api</artifactId>
             <version>3.1</version>
         </dependency>
-        <dependency>
+   <!--     <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>MGX-DTO</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
+        -->
         <dependency>
             <groupId>javax</groupId>
             <artifactId>javaee-api</artifactId>

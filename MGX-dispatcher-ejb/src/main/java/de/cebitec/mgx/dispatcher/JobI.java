@@ -1,6 +1,7 @@
 package de.cebitec.mgx.dispatcher;
 
-import de.cebitec.mgx.dto.dto.JobDTO.JobState;
+import de.cebitec.mgx.common.JobState;
+
 
 /**
  *
@@ -30,6 +31,8 @@ public abstract class JobI implements Runnable {
     public abstract String getProjectName();
 
     public abstract long getProjectJobID();
+    
+    public abstract String getConveyorGraph();
 
     @Override
     public void run() {
