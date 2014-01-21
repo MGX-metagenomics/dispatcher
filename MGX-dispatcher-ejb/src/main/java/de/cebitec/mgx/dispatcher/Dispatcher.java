@@ -67,7 +67,7 @@ public class Dispatcher {
                 queue.createJob(job);
                 cnt++;
             }
-        } catch (MGXDispatcherException ex) {
+        } catch (MGXDispatcherException | JobException ex) {
             log(ex.getMessage());
             return false;
         }
@@ -77,7 +77,12 @@ public class Dispatcher {
 
     public boolean createJob(JobI job) throws MGXDispatcherException {
         queue.createJob(job);
-        job.setState(JobState.PENDING);
+        try {
+            job.setState(JobState.PENDING);
+        } catch (JobException ex) {
+            log(ex.getMessage());
+            throw new MGXDispatcherException(ex);
+        }
 
         scheduleJobs();
         return true;
@@ -121,13 +126,20 @@ public class Dispatcher {
             if (tp.getActiveCount() < config.getMaxJobs()) {
                 JobI job = queue.nextJob();
                 if (job != null) {
-                    if (job.getState().equals(JobState.PENDING)) {
+                    JobState state = null;
+                    try {
+                        state = job.getState();
+                    } catch (JobException ex) {
+                        log(ex.getMessage());
+                    }
+                    
+                    if (state != null && state.equals(JobState.PENDING)) {
                         log("Scheduling job %d", job.getQueueID());
                         //tp.execute(job);
                         Future<?> f = tp.submit(job);
                         activeJobs.put(job.getProjectJobID(), f);
                     } else {
-                        log("Not scheduling job %d due to unexpected state %s", job.getQueueID(), job.getState().toString());
+                        log("Not scheduling job %d due to unexpected state %s", job.getQueueID(), state.toString());
                     }
                 }
             } else {
@@ -160,7 +172,7 @@ public class Dispatcher {
                 job.setState(JobState.VERIFIED);
                 return true;
             }
-        } catch (MGXDispatcherException ex) {
+        } catch (MGXDispatcherException | JobException ex) {
             log(ex.getMessage());
         }
 

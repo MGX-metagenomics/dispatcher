@@ -1,7 +1,8 @@
 package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.common.JobState;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -9,10 +10,19 @@ import de.cebitec.mgx.common.JobState;
  */
 public abstract class JobI implements Runnable {
 
+    public static final int DEFAULT_PRIORITY = 500;
+
     public JobI(Dispatcher d) {
-        dispatcher = d;
+        this(d, DEFAULT_PRIORITY);
     }
+
+    public JobI(Dispatcher d, int prio) {
+        dispatcher = d;
+        priority = prio;
+    }
+
     private final Dispatcher dispatcher;
+    private int priority;
 
     public abstract void prepare();
 
@@ -24,25 +34,28 @@ public abstract class JobI implements Runnable {
 
     public abstract void delete();
 
-    public abstract JobState getState();
+    public abstract JobState getState() throws JobException;
 
-    public abstract void setState(JobState newState);
+    public abstract void setState(JobState newState) throws JobException;
 
     public abstract String getProjectName();
 
     public abstract long getProjectJobID();
-    
+
     public abstract String getConveyorGraph();
 
     @Override
     public void run() {
-        JobState state = getState();
-        if (state == JobState.IN_DELETION) {
-            delete();
-        } else {
-            process();
+        try {
+            JobState state = getState();
+            if (state == JobState.IN_DELETION) {
+                delete();
+            } else {
+                process();
+            }
+        } catch (JobException ex) {
+            Logger.getLogger(JobI.class.getName()).log(Level.SEVERE, null, ex);
         }
-
         dispatcher.handleExitingJob(this);
     }
     private int queueID = -1;
@@ -54,7 +67,6 @@ public abstract class JobI implements Runnable {
     public int getQueueID() {
         return queueID;
     }
-    private int priority = 500;
 
     public int getPriority() {
         return priority;

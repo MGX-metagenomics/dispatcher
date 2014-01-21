@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -14,46 +16,24 @@ import java.util.List;
  */
 public class MGXJob extends JobI {
 
-    // internal dispatcher queue id
-    private int queueId;
     // project-specific job id
     private final long mgxJobId;
     private final String projectName;
-    private String conveyorGraph;
-    private int priority;
+    private final String conveyorGraph;
     private final Dispatcher dispatcher;
     private final DispatcherConfiguration config;
-    private Connection pconn = null;
+    private Connection pconn;
 
     public MGXJob(Dispatcher disp, DispatcherConfiguration dispCfg, String projName, long mgxJobId) throws MGXDispatcherException {
-        super(disp);
+        super(disp, JobI.DEFAULT_PRIORITY);
         dispatcher = disp;
         config = dispCfg;
         this.projectName = projName;
         this.mgxJobId = mgxJobId;
-        priority = 500;
         pconn = getProjectConnection(projName);
-        conveyorGraph = lookupGraphFile(projName, mgxJobId);
+        conveyorGraph = lookupGraphFile(mgxJobId);
     }
 
-//    @Override
-//    public void run() {
-//        JobState state;
-//        try {
-//            state = getState();
-//        } catch (MGXDispatcherException ex) {
-//            dispatcher.log(ex.getMessage());
-//            return;
-//        }
-//
-//        if (state == JobState.IN_DELETION) {
-//            delete();
-//        } else {
-//            process();
-//        }
-//
-//        dispatcher.handleExitingJob(this);
-//    }
     @Override
     public void prepare() {
         //
@@ -74,7 +54,7 @@ public class MGXJob extends JobI {
             cmd.append(" ");
         }
 
-        dispatcher.log("EXECUTING COMMAND: " + cmd.toString());
+        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", cmd.toString().trim());
 
         try {
             setState(JobState.RUNNING);
@@ -90,7 +70,7 @@ public class MGXJob extends JobI {
                 p = Runtime.getRuntime().exec(commands.toArray(new String[0]));
                 exitCode = p.waitFor();
             } catch (IOException | InterruptedException ex) {
-                dispatcher.log(ex.getMessage());
+                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
                 pconn = getProjectConnection(projectName);
                 setState(JobState.ABORTED);
                 setFinishDate();
@@ -110,8 +90,8 @@ public class MGXJob extends JobI {
             }
             setFinishDate();
 
-        } catch (MGXDispatcherException | SQLException ex) {
-            dispatcher.log(ex.getMessage());
+        } catch (MGXDispatcherException | JobException | SQLException ex) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -133,7 +113,6 @@ public class MGXJob extends JobI {
             stmt.execute();
             stmt.close();
 
-
             // remove attributes
             stmt = pconn.prepareStatement("DELETE FROM attribute WHERE job_id=?");
             stmt.setLong(1, mgxJobId);
@@ -146,7 +125,6 @@ public class MGXJob extends JobI {
              * of time between attributetype creation and referencing the
              * attributetype in the attribute table
              */
-
             // mark job failed
             stmt = pconn.prepareStatement("UPDATE job SET job_state=? WHERE id=?");
             stmt.setLong(1, JobState.FAILED.ordinal());
@@ -155,12 +133,12 @@ public class MGXJob extends JobI {
 
             pconn.commit();
             pconn.setAutoCommit(true);
-        } catch (Exception ex) {
-            dispatcher.log(ex.getMessage());
+        } catch (SQLException ex) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             try {
                 pconn.rollback();
             } catch (SQLException ex1) {
-                dispatcher.log(ex1.getMessage());
+                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             }
         } finally {
             close(stmt, null);
@@ -185,7 +163,6 @@ public class MGXJob extends JobI {
             stmt.execute();
             stmt.close();
 
-
             // remove attributes
             stmt = pconn.prepareStatement("DELETE FROM attribute WHERE job_id=?");
             stmt.setLong(1, mgxJobId);
@@ -198,7 +175,6 @@ public class MGXJob extends JobI {
              * of time between attributetype creation and referencing the
              * attributetype in the attribute table
              */
-
             // delete the job
             stmt = pconn.prepareStatement("DELETE FROM job WHERE id=?");
             stmt.setLong(1, mgxJobId);
@@ -210,9 +186,9 @@ public class MGXJob extends JobI {
             try {
                 pconn.rollback();
             } catch (SQLException ex1) {
-                dispatcher.log(ex1.getMessage());
+                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
             }
-            dispatcher.log(ex.getMessage());
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             close(stmt, null);
         }
@@ -233,78 +209,71 @@ public class MGXJob extends JobI {
         return projectName;
     }
 
-    public int getQueueId() {
-        return queueId;
-    }
-
-    public void setQueueId(int qId) {
-        queueId = qId;
-    }
-
-    private void setStartDate() throws MGXDispatcherException {
-        PreparedStatement stmt = null;
-        try {
-            stmt = pconn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?");
+    private void setStartDate() throws JobException {
+        int numRows = 0;
+        try (PreparedStatement stmt = pconn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?")) {
             stmt.setLong(1, mgxJobId);
-            stmt.executeUpdate();
+            numRows = stmt.executeUpdate();
         } catch (SQLException ex) {
-            throw new MGXDispatcherException(ex.getMessage());
-        } finally {
-            close(stmt, null);
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            throw new JobException(ex.getMessage());
+        }
+        if (numRows != 1) {
+            throw new JobException("Could not set start date");
         }
     }
 
-    private void setFinishDate() throws MGXDispatcherException {
-        PreparedStatement stmt = null;
-        try {
-            stmt = pconn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?");
+    private void setFinishDate() throws JobException {
+        int numRows = 0;
+        try (PreparedStatement stmt = pconn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?")) {
             stmt.setLong(1, mgxJobId);
-            stmt.executeUpdate();
+            numRows = stmt.executeUpdate();
         } catch (SQLException ex) {
-            throw new MGXDispatcherException(ex.getMessage());
-        } finally {
-            close(stmt, null);
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            throw new JobException(ex.getMessage());
+        }
+        if (numRows != 1) {
+            throw new JobException("Could not set finish date");
         }
     }
 
     @Override
-    public void setState(JobState state) {
-        PreparedStatement stmt = null;
+    public void setState(JobState state) throws JobException {
         String sql = "UPDATE job SET job_state=? WHERE id=?";
-        try {
-            stmt = pconn.prepareStatement(sql);
+        int numRows = 0;
+        try (PreparedStatement stmt = pconn.prepareStatement(sql)) {
             stmt.setLong(1, state.ordinal());
             stmt.setLong(2, mgxJobId);
-            stmt.executeUpdate();
+            numRows = stmt.executeUpdate();
         } catch (SQLException ex) {
-        } finally {
-            close(stmt, null);
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            throw new JobException(ex.getMessage());
+        }
+        if (numRows != 1) {
+            throw new JobException("Could not set job state");
         }
     }
 
     @Override
-    public JobState getState() {
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
+    public JobState getState() throws JobException {
         String sql = "SELECT job_state FROM job WHERE id=?";
         int state = -1;
 
-        try {
-            stmt = pconn.prepareStatement(sql);
+        try (PreparedStatement stmt = pconn.prepareStatement(sql)) {
             stmt.setLong(1, mgxJobId);
-            rs = stmt.executeQuery();
-            if (rs.next()) {
-                state = rs.getInt(1);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    state = rs.getInt(1);
+                }
             }
         } catch (SQLException ex) {
-            dispatcher.log(ex.getMessage());
-        } finally {
-            close(stmt, rs);
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            throw new JobException(ex);
         }
         return JobState.values()[state];
     }
 
-    private String lookupGraphFile(String projName, long jobId) throws MGXDispatcherException {
+    private String lookupGraphFile(long jobId) throws MGXDispatcherException {
         String file = null;
         PreparedStatement stmt = null;
         ResultSet rs = null;
@@ -318,7 +287,7 @@ public class MGXJob extends JobI {
                 file = rs.getString(1);
             }
         } catch (SQLException ex) {
-            dispatcher.log(ex.getMessage());
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             close(stmt, rs);
         }
@@ -349,13 +318,13 @@ public class MGXJob extends JobI {
 
             pconn.commit();
             pconn.setAutoCommit(true);
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             try {
                 pconn.rollback();
             } catch (SQLException ex1) {
-                dispatcher.log(ex1.getMessage());
+                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
             }
-            dispatcher.log(ex.getMessage());
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             close(stmt, null);
         }
@@ -366,11 +335,11 @@ public class MGXJob extends JobI {
          */
         StringBuilder sb = new StringBuilder()
                 .append(config.getMGXPersistentDir())
-                .append(File.pathSeparator)
+                .append(File.separator)
                 .append(projectName)
-                .append(File.pathSeparator)
+                .append(File.separator)
                 .append("jobs")
-                .append(File.pathSeparator)
+                .append(File.separator)
                 .append(String.valueOf(mgxJobId))
                 .append(".");
         File stdout = new File(sb.toString() + "stdout");
@@ -392,7 +361,7 @@ public class MGXJob extends JobI {
             Class.forName(config.getMGXDriverClass());
             c = DriverManager.getConnection(url, config.getMGXUser(), config.getMGXPassword());
         } catch (ClassNotFoundException | SQLException ex) {
-            dispatcher.log(ex.getMessage());
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
         assert c != null;
         return c;
@@ -407,7 +376,7 @@ public class MGXJob extends JobI {
                 s.close();
             }
         } catch (SQLException ex) {
-            dispatcher.log(ex.getMessage());
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 }
