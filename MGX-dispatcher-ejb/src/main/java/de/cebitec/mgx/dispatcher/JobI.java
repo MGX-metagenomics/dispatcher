@@ -43,6 +43,8 @@ public abstract class JobI implements Runnable {
     public abstract long getProjectJobID();
 
     public abstract String getConveyorGraph();
+    
+    public abstract String getProjectClass();
 
     @Override
     public void run() {

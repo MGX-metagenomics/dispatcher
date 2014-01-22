@@ -2,25 +2,29 @@ package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.sql.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.ejb.EJB;
+import javax.ejb.Singleton;
+import javax.ejb.Startup;
 
 /**
  *
  * @author sjaenick
  */
+
+@Singleton
+@Startup
 public class GPMSHelper {
+    
+    @EJB
+    DispatcherConfiguration config;
 
-    protected DispatcherConfiguration config;
-    protected Dispatcher dispatcher;
-
-
-    public GPMSHelper(Dispatcher disp, DispatcherConfiguration cfg) {
-        dispatcher = disp;
-        config = cfg;
-    }
+    private final static Logger logger = Logger.getLogger(GPMSHelper.class.getPackage().getName());
 
     public String getJDBCURLforProject(String projName) throws MGXDispatcherException {
 
-        Connection gpmsconn = getGPMSConnection();
+        Connection gpmsconn = getGPMSConnection(config);
 
         String sql = "SELECT CONCAT('jdbc:', LOWER(DBMS_Type.name), '://', Host.hostname, ':',"
                 + "Host.port, '/', DataSource.name) as jdbc "
@@ -33,34 +37,38 @@ public class GPMSHelper {
                 + "WHERE Project.name=\"%s\"";
         // + "WHERE Project.name=?";
         sql = String.format(sql, projName);
-        //dispatcher.log(sql);
         String jdbc = null;
-        try {
-            Statement stmt = gpmsconn.createStatement();
-            //dispatcher.log("project is "+projName);
-            //stmt.setString(1, projName);
+        try (Statement stmt = gpmsconn.createStatement()) {
             ResultSet res = stmt.executeQuery(sql);
-            if (res.next()) {
+            while (res.next()) {
                 jdbc = res.getString(1);
             }
             res.close();
             stmt.close();
             gpmsconn.close();
         } catch (SQLException e) {
-            dispatcher.log(e.getMessage());
+            log(e.getMessage());
         }
         return jdbc;
     }
 
-    private Connection getGPMSConnection() {
+    private Connection getGPMSConnection(DispatcherConfiguration config) {
         Connection c = null;
 
         try {
             Class.forName(config.getGPMSDriverClass());
             c = DriverManager.getConnection(config.getGPMSURL(), config.getGPMSUser(), config.getGPMSPassword());
         } catch (ClassNotFoundException | SQLException ex) {
-            dispatcher.log(ex.getMessage());
+            log(ex.getMessage());
         }
         return c;
+    }
+
+    private void log(String msg) {
+        logger.log(Level.INFO, msg);
+    }
+
+    private void log(String msg, Object... args) {
+        logger.log(Level.INFO, String.format(msg, args));
     }
 }

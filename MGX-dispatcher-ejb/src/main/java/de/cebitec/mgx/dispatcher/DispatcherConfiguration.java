@@ -1,7 +1,6 @@
 package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.dispatcher.common.DispatcherConfigBase;
-import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -10,6 +9,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.ejb.Singleton;
@@ -39,14 +40,17 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
             in = new FileInputStream(cfgFile.toString());
             config.load(in);
             in.close();
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             //throw new MGXDispatcherException(ex);
         }
-        
-        authToken = UUID.randomUUID();
 
-        // write dispatcher host file
-        writeDispatcherHostFile();
+        authToken = UUID.randomUUID();
+        try {
+            // write dispatcher host file
+            writeDispatcherHostFile();
+        } catch (IOException ex) {
+            Logger.getLogger(DispatcherConfiguration.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @PreDestroy
@@ -107,30 +111,21 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
     public String getMGXPersistentDir() {
         return config.getProperty("mgx_persistent_dir");
     }
-    
+
     public UUID getAuthToken() {
         return authToken;
     }
 
-    private void writeDispatcherHostFile()  {
-        String hostname = null;
-        try {
-            InetAddress addr = InetAddress.getLocalHost();
-            hostname = addr.getHostName();
-        } catch (UnknownHostException ex) {
-           // throw new MGXDispatcherException(ex);
-        }
-
+    private void writeDispatcherHostFile() throws UnknownHostException, IOException {
+        InetAddress addr = InetAddress.getLocalHost();
+        String hostname = addr.getHostName();
 
         Properties p = new Properties();
         p.put("mgx_dispatcherhost", hostname);
         p.put("mgx_dispatchertoken", authToken.toString());
 
-        try {
-            FileOutputStream fos = new FileOutputStream(dispatcherHostFile);
+        try (FileOutputStream fos = new FileOutputStream(dispatcherHostFile)) {
             p.store(fos, null);
-            fos.close();
-        } catch (IOException ex) {
         }
     }
 }

@@ -1,6 +1,11 @@
-package de.cebitec.mgx.dispatcher;
+package de.cebitec.mgx.dispatcher.mgx;
 
 import de.cebitec.mgx.common.JobState;
+import de.cebitec.mgx.dispatcher.Dispatcher;
+import de.cebitec.mgx.dispatcher.DispatcherConfiguration;
+import de.cebitec.mgx.dispatcher.GPMSHelper;
+import de.cebitec.mgx.dispatcher.JobException;
+import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.io.File;
 import java.io.IOException;
@@ -20,16 +25,16 @@ public class MGXJob extends JobI {
     private final long mgxJobId;
     private final String projectName;
     private final String conveyorGraph;
-    private final Dispatcher dispatcher;
     private final DispatcherConfiguration config;
+    private final GPMSHelper gpms;
     private Connection pconn;
 
-    public MGXJob(Dispatcher disp, DispatcherConfiguration dispCfg, String projName, long mgxJobId) throws MGXDispatcherException {
+    public MGXJob(Dispatcher disp, DispatcherConfiguration dispCfg, GPMSHelper gpms, String projName, long mgxJobId) throws MGXDispatcherException {
         super(disp, JobI.DEFAULT_PRIORITY);
-        dispatcher = disp;
         config = dispCfg;
         this.projectName = projName;
         this.mgxJobId = mgxJobId;
+        this.gpms = gpms;
         pconn = getProjectConnection(projName);
         conveyorGraph = lookupGraphFile(mgxJobId);
     }
@@ -353,7 +358,6 @@ public class MGXJob extends JobI {
     }
 
     private Connection getProjectConnection(String projName) throws MGXDispatcherException {
-        GPMSHelper gpms = new GPMSHelper(dispatcher, config);
         String url = gpms.getJDBCURLforProject(projName);
 
         Connection c = null;
@@ -378,5 +382,10 @@ public class MGXJob extends JobI {
         } catch (SQLException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+
+    @Override
+    public String getProjectClass() {
+        return "MGX";
     }
 }

@@ -17,9 +17,4 @@ public class MGXDispatcherException extends Exception {
     public MGXDispatcherException(String msg, Object... args) {
         super(String.format(msg, args));
     }
-
-    @Override
-    public Throwable fillInStackTrace() {
-        return null;
-    }
 }

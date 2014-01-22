@@ -20,29 +20,29 @@ public class JobBean {
     JobReceiver receiver;
 
     @GET
-    @Path("validate/{projName}/{id}")
+    @Path("validate/{projClass}/{projName}/{id}")
     @Produces(MediaType.TEXT_PLAIN)
-    public boolean validate(@PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
-        return receiver.validate(projName, jobId);
+    public boolean validate(@PathParam("projClass") String projClass, @PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
+        return receiver.validate(projClass, projName, jobId);
     }
 
     @GET
-    @Path("submit/{projName}/{id}")
+    @Path("submit/{projClass}/{projName}/{id}")
     @Produces(MediaType.TEXT_PLAIN)
-    public boolean submit(@PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
-        return receiver.submit(projName, jobId);
+    public boolean submit(@PathParam("projClass") String projClass, @PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
+        return receiver.submit(projClass, projName, jobId);
     }
 
     @DELETE
-    @Path("cancel/{projName}/{id}")
-    public void cancel(@PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
-        receiver.cancel(projName, jobId);
+    @Path("cancel/{projClass}/{projName}/{id}")
+    public void cancel(@PathParam("projClass") String projClass, @PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
+        receiver.cancel(projClass, projName, jobId);
     }
 
     @DELETE
-    @Path("delete/{projName}/{id}")
-    public void delete(@PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
-        receiver.delete(projName, jobId);
+    @Path("delete/{projClass}/{projName}/{id}")
+    public void delete(@PathParam("projClass") String projClass, @PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
+        receiver.delete(projClass, projName, jobId);
     }
 
     @GET

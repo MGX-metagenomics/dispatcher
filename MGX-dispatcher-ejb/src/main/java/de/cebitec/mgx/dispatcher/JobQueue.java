@@ -22,7 +22,12 @@ public class JobQueue {
     protected DispatcherConfiguration config;
     @EJB
     protected Dispatcher dispatcher;
+    @EJB
+    FactoryHolder factories;
+
     protected Connection jobqueue = null;
+    //
+    private final static Logger logger = Logger.getLogger(JobQueue.class.getPackage().getName());
 
     @PostConstruct
     public void init() {
@@ -31,7 +36,7 @@ public class JobQueue {
             jobqueue = DriverManager.getConnection("jdbc:sqlite:" + config.getJobQueueFilename());
             createJobQueue();
         } catch (ClassNotFoundException | SQLException ex) {
-            Logger.getLogger(JobQueue.class.getName()).log(Level.SEVERE, null, ex);
+            log(ex.getMessage());
         }
     }
 
@@ -46,26 +51,29 @@ public class JobQueue {
          * create new job entry in the dispatcher queue
          */
         int queueId = -1;
-        try {
-            String sql = "INSERT INTO jobqueue (project, mgxjob_id, priority) VALUES (?, ?, ?)";
-            //sql = String.format(sql, job.getProjectName(), job.getMgxJobId(), job.getPriority());
-            PreparedStatement stmt = jobqueue.prepareStatement(sql);
+        String sql = "INSERT INTO jobqueue (project, projectClass, projectJobID, priority) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement stmt = jobqueue.prepareStatement(sql)) {
             stmt.setString(1, job.getProjectName());
-            stmt.setLong(2, job.getProjectJobID());
-            stmt.setInt(3, job.getPriority());
+            stmt.setString(2, job.getProjectClass());
+            stmt.setLong(3, job.getProjectJobID());
+            stmt.setInt(4, job.getPriority());
             stmt.executeUpdate();
-
-            stmt = jobqueue.prepareStatement("SELECT last_insert_rowid()");
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                queueId = rs.getInt(1);
-            }
-            rs.close();
-            stmt.close();
         } catch (SQLException ex) {
-            dispatcher.log(ex.getMessage());
+            log(ex.getMessage());
             throw new MGXDispatcherException(ex.getMessage());
         }
+
+        try (PreparedStatement stmt2 = jobqueue.prepareStatement("SELECT last_insert_rowid()")) {
+            try (ResultSet rs = stmt2.executeQuery()) {
+                while (rs.next()) {
+                    queueId = rs.getInt(1);
+                }
+            }
+        } catch (SQLException ex) {
+            log(ex.getMessage());
+            throw new MGXDispatcherException(ex.getMessage());
+        }
+
         if (queueId != -1) {
             job.setQueueID(queueId);
             return queueId;
@@ -74,45 +82,52 @@ public class JobQueue {
     }
 
     public void removeJob(JobI job) {
-        try {
-            String sql = "DELETE FROM jobqueue WHERE project=? AND mgxjob_id=?";
-            PreparedStatement stmt = jobqueue.prepareStatement(sql);
+        String sql = "DELETE FROM jobqueue WHERE project=? AND projectJobID=?";
+        try (PreparedStatement stmt = jobqueue.prepareStatement(sql)) {
             stmt.setString(1, job.getProjectName());
             stmt.setLong(2, job.getProjectJobID());
             stmt.executeUpdate();
-            stmt.close();
         } catch (SQLException ex) {
-            dispatcher.log(ex.getMessage());
+            log(ex.getMessage());
         }
     }
 
     public JobI nextJob() {
         int queueId = -1;
+
         String projName = null;
-        long mgxJobId = -1;
+        String projClass = null;
+        long projectJobId = -1;
+
+        String sql = "SELECT id, project, projectClass, projectJobID FROM jobqueue ORDER BY priority ASC LIMIT 1";
+        try (PreparedStatement stmt = jobqueue.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    queueId = rs.getInt(1);
+                    projName = rs.getString(2);
+                    projClass = rs.getString(3);
+                    projectJobId = rs.getLong(4);
+                }
+            }
+        } catch (SQLException ex) {
+            log(ex.getMessage());
+        }
+
         JobI job = null;
-        String sql = "SELECT id, project, mgxjob_id FROM jobqueue ORDER BY priority ASC LIMIT 1";
-        try {
-            PreparedStatement stmt = jobqueue.prepareStatement(sql);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                queueId = rs.getInt(1);
-                projName = rs.getString(2);
-                mgxJobId = rs.getLong(3);
-            }
-            rs.close();
-            stmt.close();
-
-            if ((queueId != -1) && (projName != null) && (mgxJobId != -1)) {
-                job = new MGXJob(dispatcher, config, projName, mgxJobId);
+        if ((queueId != -1) && (projName != null) && (projectJobId != -1)) {
+            JobFactoryI fact = factories.getFactory(projClass);
+            if (fact != null) {
+                job = fact.createJob(projName, projectJobId);
                 job.setQueueID(queueId);
+            } else {
+                log("No job factory found for project class " + projClass);
             }
+            //job = new MGXJob(dispatcher, config, projName, projectJobId);
+        }
 
-            // delete the job from the dispatcher queue
-            if (job != null) {
-                removeJob(job);
-            }
-        } catch (SQLException | MGXDispatcherException ex) {
+        // delete the job from the dispatcher queue
+        if (job != null) {
+            removeJob(job);
         }
 
         return job;
@@ -120,14 +135,14 @@ public class JobQueue {
 
     public int size() {
         int ret = 0;
-        try {
-            Statement stmt = jobqueue.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT COUNT(id) FROM jobqueue");
-            ret = rs.getInt(1);
-            rs.close();
-            stmt.close();
+        try (Statement stmt = jobqueue.createStatement()) {
+            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(id) FROM jobqueue")) {
+                while (rs.next()) {
+                    ret = rs.getInt(1);
+                }
+            }
         } catch (SQLException ex) {
-            dispatcher.log(ex.getMessage());
+            log(ex.getMessage());
         }
         return ret;
     }
@@ -141,10 +156,19 @@ public class JobQueue {
             // Table does not exist
             String sql = "CREATE TABLE jobqueue ("
                     + "   id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + "   projectClass TEXT NOT NULL,"
                     + "   project TEXT,"
-                    + "   mgxjob_id LONG,"
+                    + "   projectJobID LONG,"
                     + "   priority INTEGER)";
             jobqueue.createStatement().execute(sql);
         }
+    }
+
+    public void log(String msg) {
+        logger.log(Level.INFO, msg);
+    }
+
+    public void log(String msg, Object... args) {
+        logger.log(Level.INFO, String.format(msg, args));
     }
 }

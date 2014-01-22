@@ -20,36 +20,54 @@ public class JobReceiver {
     @EJB
     protected Dispatcher dispatcher;
     @EJB
-    private DispatcherConfiguration config;
+    FactoryHolder factories;
 
-    public boolean submit(String projName, long mgxJobId) throws MGXDispatcherException {
-        JobI job = new MGXJob(dispatcher, config, projName, mgxJobId);
-        try {
-            if (!job.getState().equals(JobState.SUBMITTED)) {
-                throw new MGXDispatcherException("Job is in invalid state "+ job.getState());
+    public boolean submit(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
+        JobI job = getJob(projClass, projName, projectJobId);
+        if (job != null) {
+            try {
+                if (!job.getState().equals(JobState.SUBMITTED)) {
+                    throw new MGXDispatcherException("Job is in invalid state " + job.getState());
+                }
+            } catch (JobException ex) {
+                throw new MGXDispatcherException(ex);
             }
-        } catch (JobException ex) {
-            throw new MGXDispatcherException(ex);
+            return dispatcher.createJob(job);
         }
-        return dispatcher.createJob(job);
+        return false;
     }
 
-    public boolean validate(String projName, long jobId) throws MGXDispatcherException {
-        JobI job = new MGXJob(dispatcher, config, projName, jobId);
-        return dispatcher.validate(job);
+    public boolean validate(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
+        JobI job = getJob(projClass, projName, projectJobId);
+        if (job != null) {
+            return dispatcher.validate(job);
+        }
+        return false;
     }
 
-    public void delete(String projName, long jobId) throws MGXDispatcherException {
-        JobI job = new MGXJob(dispatcher, config, projName, jobId);
-        dispatcher.deleteJob(job);
+    public void delete(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
+        JobI job = getJob(projClass, projName, projectJobId);
+        if (job != null) {
+            dispatcher.deleteJob(job);
+        }
     }
 
-    public void cancel(String projName, long jobId) throws MGXDispatcherException {
-        JobI job = new MGXJob(dispatcher, config, projName, jobId);
-        dispatcher.cancelJob(job);
+    public void cancel(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
+        JobI job = getJob(projClass, projName, projectJobId);
+        if (job != null) {
+            dispatcher.cancelJob(job);
+        }
     }
 
     public boolean shutdown(UUID auth) {
         return dispatcher.shutdown(auth);
+    }
+
+    private JobI getJob(String projClass, String projName, long projectJobId) {
+        JobFactoryI fact = factories.getFactory(projClass);
+        if (fact != null) {
+            return fact.createJob(projName, projectJobId);
+        }
+        return null;
     }
 }
