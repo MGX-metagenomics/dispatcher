@@ -3,8 +3,6 @@ package de.cebitec.mgx.dispatcher;
 import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;

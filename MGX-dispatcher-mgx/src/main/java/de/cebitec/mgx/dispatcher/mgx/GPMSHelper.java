@@ -1,5 +1,6 @@
-package de.cebitec.mgx.dispatcher;
+package de.cebitec.mgx.dispatcher.mgx;
 
+import de.cebitec.mgx.dispatcher.DispatcherConfiguration;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.sql.*;
 import java.util.logging.Level;

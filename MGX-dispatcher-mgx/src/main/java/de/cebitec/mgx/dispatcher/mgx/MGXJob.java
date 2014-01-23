@@ -2,11 +2,10 @@ package de.cebitec.mgx.dispatcher.mgx;
 
 import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.Dispatcher;
-import de.cebitec.mgx.dispatcher.DispatcherConfiguration;
-import de.cebitec.mgx.dispatcher.GPMSHelper;
 import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
+import de.cebitec.mgx.dispatcher.mgx.MGXJobFactory.ConnectionProviderI;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
@@ -25,17 +24,24 @@ public class MGXJob extends JobI {
     private final long mgxJobId;
     private final String projectName;
     private final String conveyorGraph;
-    private final DispatcherConfiguration config;
-    private final GPMSHelper gpms;
+    private final String persistentDir;
+    private final String conveyorExecutable;
+    private final ConnectionProviderI cc;
+    //private final DispatcherConfiguration config;
     private Connection pconn;
 
-    public MGXJob(Dispatcher disp, DispatcherConfiguration dispCfg, GPMSHelper gpms, String projName, long mgxJobId) throws MGXDispatcherException {
+    public MGXJob(Dispatcher disp, String conveyorExec, String persistentDir,
+            ConnectionProviderI cc, String projName,
+            long mgxJobId) throws MGXDispatcherException {
+
         super(disp, JobI.DEFAULT_PRIORITY);
-        config = dispCfg;
+        //config = dispCfg;
         this.projectName = projName;
         this.mgxJobId = mgxJobId;
-        this.gpms = gpms;
-        pconn = getProjectConnection(projName);
+        this.conveyorExecutable = conveyorExec;
+        this.persistentDir = persistentDir;
+        this.cc = cc;
+        pconn = getProjectConnection(projectName);
         conveyorGraph = lookupGraphFile(mgxJobId);
     }
 
@@ -48,7 +54,7 @@ public class MGXJob extends JobI {
     public void process() {
         // build up command string
         List<String> commands = new ArrayList<>();
-        commands.add(config.getConveyorExecutable());
+        commands.add(conveyorExecutable);
         commands.add(conveyorGraph);
         commands.add(projectName);
         commands.add(String.valueOf(mgxJobId));
@@ -58,12 +64,22 @@ public class MGXJob extends JobI {
             cmd.append(s);
             cmd.append(" ");
         }
+        try {
+            setState(JobState.RUNNING);
+            setStartDate();
+        } catch (JobException ex) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            try {
+                setState(JobState.FAILED);
+            } catch (JobException ex1) {
+                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
+            }
+            return;
+        }
 
         Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", cmd.toString().trim());
 
         try {
-            setState(JobState.RUNNING);
-            setStartDate();
 
             // disconnect from database
             pconn.close();
@@ -244,18 +260,51 @@ public class MGXJob extends JobI {
 
     @Override
     public void setState(JobState state) throws JobException {
-        String sql = "UPDATE job SET job_state=? WHERE id=?";
-        int numRows = 0;
-        try (PreparedStatement stmt = pconn.prepareStatement(sql)) {
-            stmt.setLong(1, state.ordinal());
-            stmt.setLong(2, mgxJobId);
-            numRows = stmt.executeUpdate();
-        } catch (SQLException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-            throw new JobException(ex.getMessage());
+        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "{0}: state change {1} to {2}", new Object[]{mgxJobId, getState(), state});
+        String sql = "UPDATE job SET job_state=? WHERE id=? RETURNING job_state";
+        try (Connection conn = getProjectConnection(projectName)) {
+            conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            conn.setAutoCommit(false);
+
+            // acquire row lock
+            try (PreparedStatement stmt = conn.prepareStatement("SELECT job_state FROM job where id=? FOR UPDATE")) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+            }
+
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, state.ordinal());
+                stmt.setLong(2, mgxJobId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        JobState newState = JobState.values()[rs.getInt(1)];
+                        if (newState != state) {
+                            throw new JobException("DB update failed, expected " + state + ", got " + newState);
+                        }
+                    }
+                }
+            }
+            conn.commit();
+            conn.setAutoCommit(true);
+            conn.close();
+        } catch (Exception ex) {
+            throw new JobException(ex);
         }
-        if (numRows != 1) {
-            throw new JobException("Could not set job state");
+
+        try {
+            // reconnect to database
+            pconn = getProjectConnection(projectName);
+            pconn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+        } catch (SQLException | MGXDispatcherException ex) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            throw new JobException("reconnect failed: " + ex.getMessage());
+        }
+
+        JobState dbState = getState();
+        if (dbState != state) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "DB inconsistent, expected {0}, got {1}", new Object[]{state, dbState});
+            throw new JobException("DB inconsistent, expected " + state + ", got " + dbState);
         }
     }
 
@@ -302,16 +351,22 @@ public class MGXJob extends JobI {
 
     @Override
     public void finished() {
+        try {
+            setState(JobState.FINISHED);
+        } catch (JobException ex) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            try {
+                setState(JobState.FAILED);
+            } catch (JobException ex1) {
+                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
+            }
+            return;
+        }
 
         PreparedStatement stmt = null;
         try {
             // set the job to finished state
             pconn.setAutoCommit(false);
-            stmt = pconn.prepareStatement("UPDATE job SET job_state=? WHERE id=?");
-            stmt.setLong(1, JobState.FINISHED.ordinal());
-            stmt.setLong(2, mgxJobId);
-            stmt.execute();
-
             // create assignment counts for attributes belonging to this job
             String sql = "INSERT INTO attributecount "
                     + "SELECT attribute.id, count(attribute.id) FROM attribute "
@@ -339,7 +394,7 @@ public class MGXJob extends JobI {
          * them for debugging purposes, otherwise
          */
         StringBuilder sb = new StringBuilder()
-                .append(config.getMGXPersistentDir())
+                .append(persistentDir)
                 .append(File.separator)
                 .append(projectName)
                 .append(File.separator)
@@ -358,17 +413,7 @@ public class MGXJob extends JobI {
     }
 
     private Connection getProjectConnection(String projName) throws MGXDispatcherException {
-        String url = gpms.getJDBCURLforProject(projName);
-
-        Connection c = null;
-        try {
-            Class.forName(config.getMGXDriverClass());
-            c = DriverManager.getConnection(url, config.getMGXUser(), config.getMGXPassword());
-        } catch (ClassNotFoundException | SQLException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        assert c != null;
-        return c;
+        return cc.getProjectConnection(projName);
     }
 
     protected void close(Statement s, ResultSet r) {

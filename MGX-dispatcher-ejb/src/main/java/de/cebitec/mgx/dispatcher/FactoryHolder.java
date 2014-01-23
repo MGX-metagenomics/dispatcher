@@ -1,5 +1,3 @@
-
-
 package de.cebitec.mgx.dispatcher;
 
 import java.util.HashMap;
@@ -16,7 +14,7 @@ import javax.ejb.Startup;
 @Singleton
 @Startup
 public class FactoryHolder {
-    
+
     private final Map<String, JobFactoryI> data = new HashMap<>();
     private final static Logger logger = Logger.getLogger(FactoryHolder.class.getPackage().getName());
 
@@ -30,9 +28,19 @@ public class FactoryHolder {
         }
         return data.get(projClass);
     }
-    
+
     public void registerFactory(String projClass, JobFactoryI fact) {
-        data.put(projClass, fact);
-        logger.log(Level.INFO, "Registered handler for project class {0}", projClass);
+        if (data.containsKey(projClass)) {
+            logger.log(Level.INFO, "Replacing handler for project class {0}", projClass);
+            data.put(projClass, fact);
+        } else {
+            data.put(projClass, fact);
+            logger.log(Level.INFO, "Registered handler for project class {0}", projClass);
+        }
+    }
+
+    public void unregisterFactory(String projClass) {
+        data.remove(projClass);
+        logger.log(Level.INFO, "Unregistered handler for project class {0}", projClass);
     }
 }
