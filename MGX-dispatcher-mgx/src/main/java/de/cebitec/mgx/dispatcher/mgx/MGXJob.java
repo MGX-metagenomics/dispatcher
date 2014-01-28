@@ -80,7 +80,6 @@ public class MGXJob extends JobI {
         Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", cmd.toString().trim());
 
         try {
-
             // disconnect from database
             pconn.close();
             pconn = null;
@@ -203,7 +202,7 @@ public class MGXJob extends JobI {
 
             pconn.commit();
             pconn.setAutoCommit(true);
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             try {
                 pconn.rollback();
             } catch (SQLException ex1) {
@@ -355,11 +354,6 @@ public class MGXJob extends JobI {
             setState(JobState.FINISHED);
         } catch (JobException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-            try {
-                setState(JobState.FAILED);
-            } catch (JobException ex1) {
-                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
-            }
             return;
         }
 
