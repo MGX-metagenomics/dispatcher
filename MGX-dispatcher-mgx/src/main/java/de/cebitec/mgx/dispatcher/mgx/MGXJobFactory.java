@@ -6,9 +6,12 @@ import de.cebitec.mgx.dispatcher.FactoryHolder;
 import de.cebitec.mgx.dispatcher.JobFactoryI;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
@@ -24,7 +27,7 @@ import javax.ejb.Startup;
 @Singleton
 @Startup
 public class MGXJobFactory implements JobFactoryI {
-    
+
     private final static String MGX = "MGX";
 
     @EJB
@@ -37,21 +40,27 @@ public class MGXJobFactory implements JobFactoryI {
     FactoryHolder holder;
 
     private String conveyor;
-    private String persistentDir;
+    private final Properties props = new Properties();
 
     @PostConstruct
     public void init() {
         conveyor = config.getConveyorExecutable();
-        persistentDir = config.getMGXPersistentDir();
         try {
-            Class.forName(config.getMGXDriverClass());
+            Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException ex) {
+            Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        InputStream cfg = getClass().getClassLoader().getResourceAsStream("de/cebitec/mgx/dispatcher/mgx/config.properties");
+        try {
+            props.load(cfg);
+        } catch (IOException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
         // register self
         holder.registerFactory(MGX, this);
     }
-    
+
     @PreDestroy
     public void shutdown() {
         holder.unregisterFactory(MGX);
@@ -61,11 +70,23 @@ public class MGXJobFactory implements JobFactoryI {
     public JobI createJob(String projName, long jobId) {
 
         try {
-            return new MGXJob(dispatcher, conveyor, persistentDir, new MGXConnectionProvider(), projName, jobId);
+            return new MGXJob(dispatcher, conveyor, getMGXPersistentDir(), new MGXConnectionProvider(), projName, jobId);
         } catch (MGXDispatcherException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
+    }
+
+    public String getMGXUser() {
+        return props.getProperty("mgx_user");
+    }
+
+    public String getMGXPassword() {
+        return props.getProperty("mgx_password");
+    }
+
+    public String getMGXPersistentDir() {
+        return props.getProperty("mgx_persistent_dir");
     }
 
     public interface ConnectionProviderI {
@@ -81,14 +102,13 @@ public class MGXJobFactory implements JobFactoryI {
             Connection c = null;
             try {
                 String url = gpms.getJDBCURLforProject(projName);
-                c = DriverManager.getConnection(url, config.getMGXUser(), config.getMGXPassword());
+                c = DriverManager.getConnection(url, getMGXUser(), getMGXPassword());
             } catch (SQLException | MGXDispatcherException ex) {
                 Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
             }
             assert c != null;
             return c;
         }
-
     }
 
 }
