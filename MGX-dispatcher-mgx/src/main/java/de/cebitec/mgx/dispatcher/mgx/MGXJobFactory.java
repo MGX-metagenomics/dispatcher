@@ -57,6 +57,10 @@ public class MGXJobFactory implements JobFactoryI {
         } catch (IOException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
+        try {
+            cfg.close();
+        } catch (IOException ex) {
+        }
         // register self
         holder.registerFactory(MGX, this);
     }
@@ -70,7 +74,7 @@ public class MGXJobFactory implements JobFactoryI {
     public JobI createJob(String projName, long jobId) {
 
         try {
-            return new MGXJob(dispatcher, conveyor, getMGXPersistentDir(), new MGXConnectionProvider(), projName, jobId);
+            return new MGXJob(dispatcher, conveyor, config.getValidatorExecutable(), getMGXPersistentDir(), new MGXConnectionProvider(), projName, jobId);
         } catch (MGXDispatcherException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
         }

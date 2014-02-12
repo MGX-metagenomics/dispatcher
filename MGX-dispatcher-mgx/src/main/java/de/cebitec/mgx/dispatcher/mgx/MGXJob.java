@@ -6,8 +6,10 @@ import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import de.cebitec.mgx.dispatcher.mgx.MGXJobFactory.ConnectionProviderI;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,12 +27,14 @@ public class MGXJob extends JobI {
     private final String projectName;
     private final String conveyorGraph;
     private final String persistentDir;
+    private final String conveyorValidate;
     private final String conveyorExecutable;
     private final ConnectionProviderI cc;
     //private final DispatcherConfiguration config;
     private Connection pconn;
+    private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
 
-    public MGXJob(Dispatcher disp, String conveyorExec, String persistentDir,
+    public MGXJob(Dispatcher disp, String conveyorExec, String conveyorValidate, String persistentDir,
             ConnectionProviderI cc, String projName,
             long mgxJobId) throws MGXDispatcherException {
 
@@ -38,6 +42,7 @@ public class MGXJob extends JobI {
         //config = dispCfg;
         this.projectName = projName;
         this.mgxJobId = mgxJobId;
+        this.conveyorValidate = conveyorValidate;
         this.conveyorExecutable = conveyorExec;
         this.persistentDir = persistentDir;
         this.cc = cc;
@@ -426,5 +431,52 @@ public class MGXJob extends JobI {
     @Override
     public String getProjectClass() {
         return "MGX";
+    }
+
+    @Override
+    public boolean validate() throws JobException {
+        // build up command string
+        List<String> commands = new ArrayList<>();
+        commands.add(conveyorValidate);
+        commands.add(getConveyorGraph());
+        commands.add(getProjectName());
+        commands.add(String.valueOf(getProjectJobID()));
+
+        String[] argv = commands.toArray(new String[0]);
+
+        StringBuilder output = new StringBuilder();
+        Integer exitCode = null;
+        try {
+            Process p = Runtime.getRuntime().exec(argv);
+            try (BufferedReader stdout = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String s;
+                while ((s = stdout.readLine()) != null) {
+                    output.append(s);
+                }
+            }
+
+            while (exitCode == null) {
+                try {
+                    exitCode = p.waitFor();
+                } catch (InterruptedException ex) {
+                }
+            }
+        } catch (IOException ex) {
+            log(ex.getMessage());
+        }
+
+        if (exitCode != null && exitCode.intValue() == 0) {
+            return true;
+        }
+
+        throw new JobException(output.toString());
+    }
+
+    public void log(String msg) {
+        logger.log(Level.INFO, msg);
+    }
+
+    public void log(String msg, Object... args) {
+        logger.log(Level.INFO, String.format(msg, args));
     }
 }
