@@ -68,18 +68,6 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
         return config.getProperty("jobqueue_driverclass");
     }
 
-    public String getMGXDriverClass() {
-        return config.getProperty("mgx_driverclass");
-    }
-
-    public String getMGXUser() {
-        return config.getProperty("mgx_user");
-    }
-
-    public String getMGXPassword() {
-        return config.getProperty("mgx_password");
-    }
-
     public int getMaxJobs() {
         return Integer.parseInt(config.getProperty("mgx_max_parallel_jobs"));
     }
@@ -90,10 +78,6 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
 
     public String getValidatorExecutable() {
         return config.getProperty("mgx_conveyor_graphvalidate");
-    }
-
-    public String getMGXPersistentDir() {
-        return config.getProperty("mgx_persistent_dir");
     }
 
     public UUID getAuthToken() {
