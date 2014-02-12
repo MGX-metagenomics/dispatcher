@@ -16,9 +16,9 @@ import javax.ejb.Startup;
 public class JobReceiver {
 
     @EJB
-    protected Dispatcher dispatcher;
+    private Dispatcher dispatcher;
     @EJB
-    FactoryHolder factories;
+    private FactoryHolder factories;
 
     public boolean submit(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
         JobI job = getJob(projClass, projName, projectJobId);
