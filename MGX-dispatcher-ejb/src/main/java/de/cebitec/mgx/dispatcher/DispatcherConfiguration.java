@@ -60,22 +60,6 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
         f.delete();
     }
 
-    public String getGPMSUser() {
-        return config.getProperty("gpms_user");
-    }
-
-    public String getGPMSPassword() {
-        return config.getProperty("gpms_password");
-    }
-
-    public String getGPMSURL() {
-        return config.getProperty("gpms_jdbc_url");
-    }
-
-    public String getGPMSDriverClass() {
-        return config.getProperty("gpms_driverclass");
-    }
-
     public String getJobQueueFilename() {
         return config.getProperty("jobqueue_queuefile");
     }
