@@ -122,7 +122,6 @@ public class JobQueue {
             } else {
                 log("No job factory found for project class " + projClass);
             }
-            //job = new MGXJob(dispatcher, config, projName, projectJobId);
         }
 
         // delete the job from the dispatcher queue

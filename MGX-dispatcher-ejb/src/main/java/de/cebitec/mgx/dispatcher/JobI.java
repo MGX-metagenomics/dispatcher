@@ -23,6 +23,8 @@ public abstract class JobI implements Runnable {
 
     private final Dispatcher dispatcher;
     private int priority;
+    
+    public abstract boolean validate() throws JobException;
 
     public abstract void prepare();
 

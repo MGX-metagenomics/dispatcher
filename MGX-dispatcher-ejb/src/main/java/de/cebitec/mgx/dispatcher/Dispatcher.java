@@ -2,12 +2,7 @@ package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Future;
@@ -167,53 +162,13 @@ public class Dispatcher {
 
     public boolean validate(JobI job) {
         try {
-            if (validateParameters(job)) {
+            if (job.validate()) {
                 job.setState(JobState.VERIFIED);
                 return true;
             }
-        } catch (MGXDispatcherException | JobException ex) {
+        } catch (JobException ex) {
             log(ex.getMessage());
         }
-
         return false;
-    }
-
-    private boolean validateParameters(JobI j) throws MGXDispatcherException {
-
-        // build up command string
-        List<String> commands = new ArrayList<>();
-        commands.add(config.getValidatorExecutable());
-        commands.add(j.getConveyorGraph());
-        commands.add(j.getProjectName());
-        commands.add(String.valueOf(j.getProjectJobID()));
-
-        String[] argv = commands.toArray(new String[0]);
-
-        StringBuilder output = new StringBuilder();
-        Integer exitCode = null;
-        try {
-            Process p = Runtime.getRuntime().exec(argv);
-            try (BufferedReader stdout = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String s;
-                while ((s = stdout.readLine()) != null) {
-                    output.append(s);
-                }
-            }
-
-            while (exitCode == null) {
-                try {
-                    exitCode = p.waitFor();
-                } catch (InterruptedException ex) {
-                }
-            }
-        } catch (IOException ex) {
-            log(ex.getMessage());
-        }
-
-        if (exitCode != null && exitCode.intValue() == 0) {
-            return true;
-        }
-
-        throw new MGXDispatcherException(output.toString());
     }
 }
