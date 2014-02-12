@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
@@ -32,15 +33,13 @@ public class Dispatcher {
     private JobQueue queue;
     private ThreadPoolExecutor tp = null;
     private final static Logger logger = Logger.getLogger(Dispatcher.class.getPackage().getName());
-    private HashMap<Long, Future<?>> activeJobs;
-    private boolean queueMode;
+    private final Map<JobI, Future<?>> activeJobs = new HashMap<>();
+    private boolean queueMode = false;
 
     @PostConstruct
     public void init() {
         log("Starting MGX dispatcher");
-        activeJobs = new HashMap<>();
         int queueSize = queue.size();
-        queueMode = false;
         log("%d jobs in queue, execution limited to max %d parallel jobs", queueSize, config.getMaxJobs());
         tp = ThreadPoolExecutorFactory.createPool(config);
         scheduleJobs();
@@ -92,10 +91,10 @@ public class Dispatcher {
         // try to remove job from queue
         queue.removeJob(job);
 
-        if (activeJobs.containsKey(job.getProjectJobID())) {
-            Future<?> f = activeJobs.get(job.getProjectJobID());
+        if (activeJobs.containsKey(job)) {
+            Future<?> f = activeJobs.get(job);
             f.cancel(true);
-            activeJobs.remove(job.getProjectJobID());
+            activeJobs.remove(job);
         }
     }
 
@@ -109,8 +108,8 @@ public class Dispatcher {
     }
 
     public void handleExitingJob(JobI job) {
-        if (activeJobs.containsKey(job.getProjectJobID())) {
-            activeJobs.remove(job.getProjectJobID());
+        if (activeJobs.containsKey(job)) {
+            activeJobs.remove(job);
         }
         scheduleJobs();
     }
@@ -132,12 +131,12 @@ public class Dispatcher {
                     } catch (JobException ex) {
                         log(ex.getMessage());
                     }
-                    
+
                     if (state != null && state.equals(JobState.PENDING)) {
                         log("Scheduling job %d", job.getQueueID());
                         //tp.execute(job);
                         Future<?> f = tp.submit(job);
-                        activeJobs.put(job.getProjectJobID(), f);
+                        activeJobs.put(job, f);
                     } else {
                         log("Not scheduling job %d due to unexpected state %s", job.getQueueID(), state.toString());
                     }
@@ -194,12 +193,12 @@ public class Dispatcher {
         Integer exitCode = null;
         try {
             Process p = Runtime.getRuntime().exec(argv);
-            BufferedReader stdout = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            String s;
-            while ((s = stdout.readLine()) != null) {
-                output.append(s);
+            try (BufferedReader stdout = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String s;
+                while ((s = stdout.readLine()) != null) {
+                    output.append(s);
+                }
             }
-            stdout.close();
 
             while (exitCode == null) {
                 try {

@@ -43,7 +43,7 @@ public abstract class JobI implements Runnable {
     public abstract long getProjectJobID();
 
     public abstract String getConveyorGraph();
-    
+
     public abstract String getProjectClass();
 
     @Override
@@ -77,4 +77,34 @@ public abstract class JobI implements Runnable {
     public void setPriority(int priority) {
         this.priority = priority;
     }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 17 * hash + this.priority;
+        hash = 17 * hash + this.queueID;
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final JobI other = (JobI) obj;
+        if (this.getProjectJobID() != other.getProjectJobID()) {
+            return false;
+        }
+        if (!this.getProjectClass().equals(other.getProjectClass())) {
+            return false;
+        }
+        if (!this.getProjectName().equals(other.getProjectName())) {
+            return false;
+        }
+        return true;
+    }
+
 }
