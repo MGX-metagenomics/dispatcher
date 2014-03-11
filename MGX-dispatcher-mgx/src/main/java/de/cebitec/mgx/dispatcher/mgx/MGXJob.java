@@ -92,7 +92,7 @@ public class MGXJob extends JobI {
             Process p = null;
             int exitCode = -1;
             try {
-                p = Runtime.getRuntime().exec(commands.toArray(new String[0]));
+                p = Runtime.getRuntime().exec(commands.toArray(new String[]{}));
                 exitCode = p.waitFor();
             } catch (IOException | InterruptedException ex) {
                 Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
@@ -442,7 +442,7 @@ public class MGXJob extends JobI {
         commands.add(getProjectName());
         commands.add(String.valueOf(getProjectJobID()));
 
-        String[] argv = commands.toArray(new String[0]);
+        String[] argv = commands.toArray(new String[]{});
 
         StringBuilder output = new StringBuilder();
         Integer exitCode = null;
