@@ -81,15 +81,21 @@ public class JobQueue {
         throw new MGXDispatcherException("No queue ID returned.");
     }
 
-    public void removeJob(JobI job) {
+    public boolean deleteJob(JobI job) {
         String sql = "DELETE FROM jobqueue WHERE project=? AND projectJobID=?";
         try (PreparedStatement stmt = jobqueue.prepareStatement(sql)) {
             stmt.setString(1, job.getProjectName());
             stmt.setLong(2, job.getProjectJobID());
-            stmt.executeUpdate();
+            int numRows = stmt.executeUpdate();
+            if (numRows == 1) {
+                log("Job ID " + job.getProjectJobID() + " (" + job.getProjectName() + ") deleted from queue.");
+                return true;
+            }
         } catch (SQLException ex) {
             log(ex.getMessage());
+            return false;
         }
+        return false;
     }
 
     public JobI nextJob() {
@@ -126,7 +132,14 @@ public class JobQueue {
 
         // delete the job from the dispatcher queue
         if (job != null) {
-            removeJob(job);
+            String sql2 = "DELETE FROM jobqueue WHERE project=? AND projectJobID=?";
+            try (PreparedStatement stmt = jobqueue.prepareStatement(sql2)) {
+                stmt.setString(1, job.getProjectName());
+                stmt.setLong(2, job.getProjectJobID());
+                stmt.executeUpdate();
+            } catch (SQLException ex) {
+                log(ex.getMessage());
+            }
         }
 
         return job;

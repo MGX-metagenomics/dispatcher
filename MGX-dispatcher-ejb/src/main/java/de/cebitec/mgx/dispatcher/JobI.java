@@ -83,8 +83,8 @@ public abstract class JobI implements Runnable {
     @Override
     public int hashCode() {
         int hash = 7;
-        hash = 17 * hash + this.priority;
-        hash = 17 * hash + this.queueID;
+        hash = 17 * hash + this.getProjectName().hashCode();
+        hash = (int) (17 * hash + this.getProjectJobID());
         return hash;
     }
 

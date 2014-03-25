@@ -84,12 +84,19 @@ public class Dispatcher {
 
     public void cancelJob(JobI job) throws MGXDispatcherException {
         // try to remove job from queue
-        queue.removeJob(job);
+        boolean deleted = queue.deleteJob(job);
 
-        if (activeJobs.containsKey(job)) {
-            Future<?> f = activeJobs.get(job);
-            f.cancel(true);
-            activeJobs.remove(job);
+        if (!deleted) {
+            // abort job if already running
+            if (activeJobs.containsKey(job)) {
+                Future<?> f = activeJobs.remove(job);
+                if (f != null) {
+                    deleted = f.cancel(true);
+                    if (deleted) {
+                        log("Job " + job.getProjectJobID() + " (" + job.getProjectName() + ") aborted.");
+                    }
+                }
+            }
         }
     }
 
