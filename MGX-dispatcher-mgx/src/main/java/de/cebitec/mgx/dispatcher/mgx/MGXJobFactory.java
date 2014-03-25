@@ -39,16 +39,16 @@ public class MGXJobFactory implements JobFactoryI {
     @EJB
     FactoryHolder holder;
 
-    private String conveyor;
     private final Properties props = new Properties();
+    private ConnectionProviderI cp = new MGXConnectionProvider();
 
     @PostConstruct
     public void init() {
-        conveyor = config.getConveyorExecutable();
         try {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+            return;
         }
 
         InputStream cfg = getClass().getClassLoader().getResourceAsStream("de/cebitec/mgx/dispatcher/mgx/config.properties");
@@ -56,10 +56,12 @@ public class MGXJobFactory implements JobFactoryI {
             props.load(cfg);
         } catch (IOException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+            return;
         }
         try {
             cfg.close();
         } catch (IOException ex) {
+            return;
         }
         // register self
         holder.registerFactory(MGX, this);
@@ -74,22 +76,23 @@ public class MGXJobFactory implements JobFactoryI {
     public JobI createJob(String projName, long jobId) {
 
         try {
-            return new MGXJob(dispatcher, conveyor, config.getValidatorExecutable(), getMGXPersistentDir(), new MGXConnectionProvider(), projName, jobId);
+            return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(), 
+                    getMGXPersistentDir(), cp, projName, jobId);
         } catch (MGXDispatcherException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }
 
-    public String getMGXUser() {
+    private String getMGXUser() {
         return props.getProperty("mgx_user");
     }
 
-    public String getMGXPassword() {
+    private String getMGXPassword() {
         return props.getProperty("mgx_password");
     }
 
-    public String getMGXPersistentDir() {
+    private String getMGXPersistentDir() {
         return props.getProperty("mgx_persistent_dir");
     }
 

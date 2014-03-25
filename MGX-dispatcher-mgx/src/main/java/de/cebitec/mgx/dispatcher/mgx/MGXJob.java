@@ -31,7 +31,7 @@ public class MGXJob extends JobI {
     private final String conveyorExecutable;
     private final ConnectionProviderI cc;
     //private final DispatcherConfiguration config;
-    private Connection pconn;
+    //private Connection pconn;
     private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
 
     public MGXJob(Dispatcher disp, String conveyorExec, String conveyorValidate, String persistentDir,
@@ -46,7 +46,7 @@ public class MGXJob extends JobI {
         this.conveyorExecutable = conveyorExec;
         this.persistentDir = persistentDir;
         this.cc = cc;
-        pconn = getProjectConnection(projectName);
+        //pconn = getProjectConnection(projectName);
         conveyorGraph = lookupGraphFile(mgxJobId);
     }
 
@@ -85,18 +85,23 @@ public class MGXJob extends JobI {
         Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", cmd.toString().trim());
 
         try {
-            // disconnect from database
-            pconn.close();
-            pconn = null;
 
             Process p = null;
             int exitCode = -1;
             try {
                 p = Runtime.getRuntime().exec(commands.toArray(new String[]{}));
                 exitCode = p.waitFor();
-            } catch (IOException | InterruptedException ex) {
+            } catch (InterruptedException ex) {
+                /*
+                 * job was aborted
+                 */
+                setState(JobState.ABORTED);
+                setFinishDate();
+                return;
+            } catch (IOException ex) {
+                // does this happen at all? under which conditions? log exception and
+                // treat like job was cancelled, for now..
                 Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-                pconn = getProjectConnection(projectName);
                 setState(JobState.ABORTED);
                 setFinishDate();
                 return;
@@ -106,8 +111,6 @@ public class MGXJob extends JobI {
                 }
             }
 
-            // reconnect to database
-            pconn = getProjectConnection(projectName);
             if (exitCode == 0) {
                 finished();
             } else {
@@ -115,34 +118,36 @@ public class MGXJob extends JobI {
             }
             setFinishDate();
 
-        } catch (MGXDispatcherException | JobException | SQLException ex) {
+        } catch (JobException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
     @Override
     public void failed() {
-        PreparedStatement stmt = null;
-        try {
-            pconn.setAutoCommit(false);
+        try (Connection conn = getProjectConnection(projectName)) {
+            conn.setAutoCommit(false);
 
             // remove observations
-            stmt = pconn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)");
-            stmt.setLong(1, mgxJobId);
-            stmt.execute();
-            stmt.close();
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+                stmt.close();
+            }
 
             // remove observations
-            stmt = pconn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)");
-            stmt.setLong(1, mgxJobId);
-            stmt.execute();
-            stmt.close();
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+                stmt.close();
+            }
 
             // remove attributes
-            stmt = pconn.prepareStatement("DELETE FROM attribute WHERE job_id=?");
-            stmt.setLong(1, mgxJobId);
-            stmt.execute();
-            stmt.close();
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+                stmt.close();
+            }
 
             /*
              * we can't delete orphan attributetypes, since there might be other
@@ -151,48 +156,44 @@ public class MGXJob extends JobI {
              * attributetype in the attribute table
              */
             // mark job failed
-            stmt = pconn.prepareStatement("UPDATE job SET job_state=? WHERE id=?");
-            stmt.setLong(1, JobState.FAILED.ordinal());
-            stmt.setLong(2, mgxJobId);
-            stmt.execute();
+            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=? WHERE id=?")) {
+                stmt.setLong(1, JobState.FAILED.ordinal());
+                stmt.setLong(2, mgxJobId);
+                stmt.execute();
+            }
 
-            pconn.commit();
-            pconn.setAutoCommit(true);
+            conn.commit();
+            conn.setAutoCommit(true);
         } catch (SQLException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-            try {
-                pconn.rollback();
-            } catch (SQLException ex1) {
-                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        } finally {
-            close(stmt, null);
         }
     }
 
     @Override
     public void delete() {
-        PreparedStatement stmt = null;
-        try {
-            pconn.setAutoCommit(false);
+        try (Connection conn = getProjectConnection(projectName)) {
+            conn.setAutoCommit(false);
 
             // remove observations
-            stmt = pconn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)");
-            stmt.setLong(1, mgxJobId);
-            stmt.execute();
-            stmt.close();
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+                stmt.close();
+            }
 
             // remove observations
-            stmt = pconn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)");
-            stmt.setLong(1, mgxJobId);
-            stmt.execute();
-            stmt.close();
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+                stmt.close();
+            }
 
             // remove attributes
-            stmt = pconn.prepareStatement("DELETE FROM attribute WHERE job_id=?");
-            stmt.setLong(1, mgxJobId);
-            stmt.execute();
-            stmt.close();
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+                stmt.close();
+            }
 
             /*
              * we can't delete orphan attributetypes, since there might be other
@@ -201,21 +202,17 @@ public class MGXJob extends JobI {
              * attributetype in the attribute table
              */
             // delete the job
-            stmt = pconn.prepareStatement("DELETE FROM job WHERE id=?");
-            stmt.setLong(1, mgxJobId);
-            stmt.execute();
-
-            pconn.commit();
-            pconn.setAutoCommit(true);
-        } catch (SQLException ex) {
-            try {
-                pconn.rollback();
-            } catch (SQLException ex1) {
-                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM job WHERE id=?")) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+                stmt.close();
             }
+
+            conn.commit();
+            conn.setAutoCommit(true);
+            conn.close();
+        } catch (SQLException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            close(stmt, null);
         }
     }
 
@@ -236,13 +233,18 @@ public class MGXJob extends JobI {
 
     private void setStartDate() throws JobException {
         int numRows = 0;
-        try (PreparedStatement stmt = pconn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?")) {
-            stmt.setLong(1, mgxJobId);
-            numRows = stmt.executeUpdate();
+        try (Connection conn = getProjectConnection(projectName)) {
+            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?")) {
+                stmt.setLong(1, mgxJobId);
+                numRows = stmt.executeUpdate();
+                stmt.close();
+            }
+            conn.close();
         } catch (SQLException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
         }
+
         if (numRows != 1) {
             throw new JobException("Could not set start date");
         }
@@ -250,9 +252,13 @@ public class MGXJob extends JobI {
 
     private void setFinishDate() throws JobException {
         int numRows = 0;
-        try (PreparedStatement stmt = pconn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?")) {
-            stmt.setLong(1, mgxJobId);
-            numRows = stmt.executeUpdate();
+        try (Connection conn = getProjectConnection(projectName)) {
+            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?")) {
+                stmt.setLong(1, mgxJobId);
+                numRows = stmt.executeUpdate();
+                stmt.close();
+            }
+            conn.close();
         } catch (SQLException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
@@ -263,11 +269,11 @@ public class MGXJob extends JobI {
     }
 
     @Override
-    public void setState(JobState state) throws JobException {
+    public synchronized void setState(JobState state) throws JobException {
         Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "{0}: state change {1} to {2}", new Object[]{mgxJobId, getState(), state});
         String sql = "UPDATE job SET job_state=? WHERE id=? RETURNING job_state";
         try (Connection conn = getProjectConnection(projectName)) {
-            conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            //conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             conn.setAutoCommit(false);
 
             // acquire row lock
@@ -295,16 +301,15 @@ public class MGXJob extends JobI {
             throw new JobException(ex);
         }
 
-        try {
-            // reconnect to database
-            pconn = getProjectConnection(projectName);
-            pconn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-
-        } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-            throw new JobException("reconnect failed: " + ex.getMessage());
-        }
-
+//        try {
+//            // reconnect to database
+//            pconn = getProjectConnection(projectName);
+//            pconn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+//
+//        } catch (SQLException ex) {
+//            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+//            throw new JobException("reconnect failed: " + ex.getMessage());
+//        }
         JobState dbState = getState();
         if (dbState != state) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "DB inconsistent, expected {0}, got {1}", new Object[]{state, dbState});
@@ -317,13 +322,18 @@ public class MGXJob extends JobI {
         String sql = "SELECT job_state FROM job WHERE id=?";
         int state = -1;
 
-        try (PreparedStatement stmt = pconn.prepareStatement(sql)) {
-            stmt.setLong(1, mgxJobId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    state = rs.getInt(1);
+        try (Connection conn = getProjectConnection(projectName)) {
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, mgxJobId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        state = rs.getInt(1);
+                    }
+                    rs.close();
                 }
+                stmt.close();
             }
+            conn.close();
         } catch (SQLException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex);
@@ -333,21 +343,22 @@ public class MGXJob extends JobI {
 
     private String lookupGraphFile(long jobId) throws MGXDispatcherException {
         String file = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
         String sql = "SELECT Tool.xml_file FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
 
-        try {
-            stmt = pconn.prepareStatement(sql);
-            stmt.setLong(1, jobId);
-            rs = stmt.executeQuery();
-            if (rs.next()) {
-                file = rs.getString(1);
+        try (Connection conn = getProjectConnection(projectName)) {
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, jobId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        file = rs.getString(1);
+                    }
+                    rs.close();
+                }
+                stmt.close();
             }
+            conn.close();
         } catch (SQLException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            close(stmt, rs);
         }
 
         return file;
@@ -362,30 +373,30 @@ public class MGXJob extends JobI {
             return;
         }
 
-        PreparedStatement stmt = null;
-        try {
+        try (Connection conn = getProjectConnection(projectName)) {
             // set the job to finished state
-            pconn.setAutoCommit(false);
+            conn.setAutoCommit(false);
             // create assignment counts for attributes belonging to this job
             String sql = "INSERT INTO attributecount "
                     + "SELECT attribute.id, count(attribute.id) FROM attribute "
                     + "LEFT JOIN observation ON (attribute.id = observation.attr_id) "
                     + "WHERE job_id=? GROUP BY attribute.id ORDER BY attribute.id";
-            stmt = pconn.prepareStatement(sql);
-            stmt.setLong(1, mgxJobId);
-            stmt.execute();
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, mgxJobId);
+                stmt.execute();
+                stmt.close();
+            }
 
-            pconn.commit();
-            pconn.setAutoCommit(true);
+            conn.commit();
+            conn.setAutoCommit(true);
+            conn.close();
         } catch (SQLException ex) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             try {
-                pconn.rollback();
-            } catch (SQLException ex1) {
+                setState(JobState.FAILED);
+            } catch (JobException ex1) {
                 Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
             }
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            close(stmt, null);
         }
 
         /*
@@ -411,7 +422,7 @@ public class MGXJob extends JobI {
         }
     }
 
-    private Connection getProjectConnection(String projName) throws MGXDispatcherException {
+    private Connection getProjectConnection(String projName) {
         return cc.getProjectConnection(projName);
     }
 
