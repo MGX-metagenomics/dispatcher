@@ -12,18 +12,22 @@ public abstract class JobI implements Runnable {
 
     public static final int DEFAULT_PRIORITY = 500;
 
-    public JobI(Dispatcher d) {
-        this(d, DEFAULT_PRIORITY);
-    }
+//    public JobI(Dispatcher d) {
+//        this(d, DEFAULT_PRIORITY);
+//    }
 
-    public JobI(Dispatcher d, int prio) {
+    public JobI(Dispatcher d, long projJid, String projName, int prio) {
         dispatcher = d;
+        projectJobId = projJid;
+        projectName = projName;
         priority = prio;
     }
 
     private final Dispatcher dispatcher;
     private int priority;
-    
+    private final long projectJobId;
+    private final String projectName;
+
     public abstract boolean validate() throws JobException;
 
     public abstract void prepare();
@@ -40,9 +44,9 @@ public abstract class JobI implements Runnable {
 
     public abstract void setState(JobState newState) throws JobException;
 
-    public abstract String getProjectName();
+    public String getProjectName() { return projectName; }
 
-    public abstract long getProjectJobID();
+    public long getProjectJobID() { return projectJobId; }
 
     public abstract String getConveyorGraph();
 

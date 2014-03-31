@@ -23,8 +23,7 @@ import java.util.logging.Logger;
 public class MGXJob extends JobI {
 
     // project-specific job id
-    private final long mgxJobId;
-    private final String projectName;
+
     private final String conveyorGraph;
     private final String persistentDir;
     private final String conveyorValidate;
@@ -38,15 +37,12 @@ public class MGXJob extends JobI {
             ConnectionProviderI cc, String projName,
             long mgxJobId) throws MGXDispatcherException {
 
-        super(disp, JobI.DEFAULT_PRIORITY);
+        super(disp, mgxJobId, projName, JobI.DEFAULT_PRIORITY);
         //config = dispCfg;
-        this.projectName = projName;
-        this.mgxJobId = mgxJobId;
         this.conveyorValidate = conveyorValidate;
         this.conveyorExecutable = conveyorExec;
         this.persistentDir = persistentDir;
         this.cc = cc;
-        //pconn = getProjectConnection(projectName);
         conveyorGraph = lookupGraphFile(mgxJobId);
     }
 
@@ -61,8 +57,8 @@ public class MGXJob extends JobI {
         List<String> commands = new ArrayList<>();
         commands.add(conveyorExecutable);
         commands.add(conveyorGraph);
-        commands.add(projectName);
-        commands.add(String.valueOf(mgxJobId));
+        commands.add(getProjectName());
+        commands.add(String.valueOf(getProjectJobID()));
 
         StringBuilder cmd = new StringBuilder();
         for (String s : commands) {
@@ -125,26 +121,26 @@ public class MGXJob extends JobI {
 
     @Override
     public void failed() {
-        try (Connection conn = getProjectConnection(projectName)) {
+        try (Connection conn = getProjectConnection()) {
             conn.setAutoCommit(false);
 
             // remove observations
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
             // remove observations
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
             // remove attributes
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
@@ -158,7 +154,7 @@ public class MGXJob extends JobI {
             // mark job failed
             try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=? WHERE id=?")) {
                 stmt.setLong(1, JobState.FAILED.ordinal());
-                stmt.setLong(2, mgxJobId);
+                stmt.setLong(2, getProjectJobID());
                 stmt.execute();
             }
 
@@ -171,26 +167,26 @@ public class MGXJob extends JobI {
 
     @Override
     public void delete() {
-        try (Connection conn = getProjectConnection(projectName)) {
+        try (Connection conn = getProjectConnection()) {
             conn.setAutoCommit(false);
 
             // remove observations
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
             // remove observations
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
             // remove attributes
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
@@ -203,7 +199,7 @@ public class MGXJob extends JobI {
              */
             // delete the job
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM job WHERE id=?")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
@@ -221,21 +217,11 @@ public class MGXJob extends JobI {
         return conveyorGraph;
     }
 
-    @Override
-    public long getProjectJobID() {
-        return mgxJobId;
-    }
-
-    @Override
-    public String getProjectName() {
-        return projectName;
-    }
-
     private void setStartDate() throws JobException {
         int numRows = 0;
-        try (Connection conn = getProjectConnection(projectName)) {
+        try (Connection conn = getProjectConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 numRows = stmt.executeUpdate();
                 stmt.close();
             }
@@ -252,9 +238,9 @@ public class MGXJob extends JobI {
 
     private void setFinishDate() throws JobException {
         int numRows = 0;
-        try (Connection conn = getProjectConnection(projectName)) {
+        try (Connection conn = getProjectConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 numRows = stmt.executeUpdate();
                 stmt.close();
             }
@@ -270,21 +256,22 @@ public class MGXJob extends JobI {
 
     @Override
     public synchronized void setState(JobState state) throws JobException {
-        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "{0}: state change {1} to {2}", new Object[]{mgxJobId, getState(), state});
+        //Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "{0}/{1}: state change {2} to {3}", new Object[]{projectName, mgxJobId, getState(), state});
         String sql = "UPDATE job SET job_state=? WHERE id=? RETURNING job_state";
-        try (Connection conn = getProjectConnection(projectName)) {
+        try (Connection conn = getProjectConnection()) {
             //conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             conn.setAutoCommit(false);
 
             // acquire row lock
             try (PreparedStatement stmt = conn.prepareStatement("SELECT job_state FROM job where id=? FOR UPDATE")) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
+                stmt.close();
             }
 
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, state.ordinal());
-                stmt.setLong(2, mgxJobId);
+                stmt.setLong(2, getProjectJobID());
                 try (ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
                         JobState newState = JobState.values()[rs.getInt(1)];
@@ -292,7 +279,9 @@ public class MGXJob extends JobI {
                             throw new JobException("DB update failed, expected " + state + ", got " + newState);
                         }
                     }
+                    rs.close();
                 }
+                stmt.close();
             }
             conn.commit();
             conn.setAutoCommit(true);
@@ -322,9 +311,9 @@ public class MGXJob extends JobI {
         String sql = "SELECT job_state FROM job WHERE id=?";
         int state = -1;
 
-        try (Connection conn = getProjectConnection(projectName)) {
+        try (Connection conn = getProjectConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
                         state = rs.getInt(1);
@@ -345,7 +334,7 @@ public class MGXJob extends JobI {
         String file = null;
         String sql = "SELECT Tool.xml_file FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
 
-        try (Connection conn = getProjectConnection(projectName)) {
+        try (Connection conn = getProjectConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, jobId);
                 try (ResultSet rs = stmt.executeQuery()) {
@@ -373,7 +362,7 @@ public class MGXJob extends JobI {
             return;
         }
 
-        try (Connection conn = getProjectConnection(projectName)) {
+        try (Connection conn = getProjectConnection()) {
             // set the job to finished state
             conn.setAutoCommit(false);
             // create assignment counts for attributes belonging to this job
@@ -382,7 +371,7 @@ public class MGXJob extends JobI {
                     + "LEFT JOIN observation ON (attribute.id = observation.attr_id) "
                     + "WHERE job_id=? GROUP BY attribute.id ORDER BY attribute.id";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, mgxJobId);
+                stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
@@ -406,11 +395,11 @@ public class MGXJob extends JobI {
         StringBuilder sb = new StringBuilder()
                 .append(persistentDir)
                 .append(File.separator)
-                .append(projectName)
+                .append(getProjectName())
                 .append(File.separator)
                 .append("jobs")
                 .append(File.separator)
-                .append(String.valueOf(mgxJobId))
+                .append(String.valueOf(getProjectJobID()))
                 .append(".");
         File stdout = new File(sb.toString() + "stdout");
         if (stdout.exists()) {
@@ -422,8 +411,8 @@ public class MGXJob extends JobI {
         }
     }
 
-    private Connection getProjectConnection(String projName) {
-        return cc.getProjectConnection(projName);
+    private Connection getProjectConnection() {
+        return cc.getProjectConnection(getProjectName());
     }
 
     protected void close(Statement s, ResultSet r) {
