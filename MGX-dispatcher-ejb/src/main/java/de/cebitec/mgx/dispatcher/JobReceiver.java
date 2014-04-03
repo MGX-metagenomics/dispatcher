@@ -3,8 +3,6 @@ package de.cebitec.mgx.dispatcher;
 import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
@@ -53,7 +51,6 @@ public class JobReceiver {
     }
 
     public void cancel(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
-        System.err.println("got cancel req for job id "+ projectJobId);
         JobI job = getJob(projClass, projName, projectJobId);
         if (job == null) {
             throw new MGXDispatcherException("No job with ID " + projectJobId + " found in project " + projName);
@@ -67,10 +64,6 @@ public class JobReceiver {
 
     private JobI getJob(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
         JobFactoryI fact = factories.getFactory(projClass);
-        if (fact == null) {
-            Logger.getLogger(JobReceiver.class.getName()).log(Level.SEVERE, null, "No registered job factory for project class "+ projClass);
-            throw new MGXDispatcherException("No registered job factory for project class "+ projClass);
-        }
         return fact.createJob(projName, projectJobId);
     }
 }

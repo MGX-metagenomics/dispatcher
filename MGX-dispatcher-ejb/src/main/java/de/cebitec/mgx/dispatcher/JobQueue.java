@@ -23,7 +23,7 @@ public class JobQueue {
     @EJB
     protected Dispatcher dispatcher;
     @EJB
-    FactoryHolder factories;
+    protected FactoryHolder factories;
 
     protected Connection jobqueue = null;
     //
@@ -58,6 +58,7 @@ public class JobQueue {
             stmt.setLong(3, job.getProjectJobID());
             stmt.setInt(4, job.getPriority());
             stmt.executeUpdate();
+            stmt.close();
         } catch (SQLException ex) {
             log(ex.getMessage());
             throw new MGXDispatcherException(ex.getMessage());
@@ -68,7 +69,9 @@ public class JobQueue {
                 while (rs.next()) {
                     queueId = rs.getInt(1);
                 }
+                rs.close();
             }
+            stmt2.close();
         } catch (SQLException ex) {
             log(ex.getMessage());
             throw new MGXDispatcherException(ex.getMessage());
@@ -121,7 +124,12 @@ public class JobQueue {
 
         JobI job = null;
         if ((queueId != -1) && (projName != null) && (projectJobId != -1)) {
-            JobFactoryI fact = factories.getFactory(projClass);
+            JobFactoryI fact = null;
+            try {
+                fact = factories.getFactory(projClass);
+            } catch (MGXDispatcherException ex) {
+                log(ex.getMessage());
+            }
             if (fact != null) {
                 job = fact.createJob(projName, projectJobId);
                 job.setQueueID(queueId);
@@ -137,6 +145,7 @@ public class JobQueue {
                 stmt.setString(1, job.getProjectName());
                 stmt.setLong(2, job.getProjectJobID());
                 stmt.executeUpdate();
+                stmt.close();
             } catch (SQLException ex) {
                 log(ex.getMessage());
             }
@@ -152,7 +161,9 @@ public class JobQueue {
                 while (rs.next()) {
                     ret = rs.getInt(1);
                 }
+                rs.close();
             }
+            stmt.close();
         } catch (SQLException ex) {
             log(ex.getMessage());
         }
@@ -161,18 +172,20 @@ public class JobQueue {
 
     private void createJobQueue() throws SQLException {
         DatabaseMetaData dbm = jobqueue.getMetaData();
-        ResultSet rs = dbm.getTables(null, null, "jobqueue", null);
-        if (rs.next()) {
-            // Table exists
-        } else {
-            // Table does not exist
-            String sql = "CREATE TABLE jobqueue ("
-                    + "   id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    + "   projectClass TEXT NOT NULL,"
-                    + "   project TEXT,"
-                    + "   projectJobID LONG,"
-                    + "   priority INTEGER)";
-            jobqueue.createStatement().execute(sql);
+        try (ResultSet rs = dbm.getTables(null, null, "jobqueue", null)) {
+            if (rs.next()) {
+                // Table exists
+            } else {
+                // Table does not exist
+                String sql = "CREATE TABLE jobqueue ("
+                        + "   id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        + "   projectClass TEXT NOT NULL,"
+                        + "   project TEXT,"
+                        + "   projectJobID LONG,"
+                        + "   priority INTEGER)";
+                jobqueue.createStatement().execute(sql);
+            }
+            rs.close();
         }
     }
 

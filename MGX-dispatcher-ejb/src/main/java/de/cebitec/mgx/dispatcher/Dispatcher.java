@@ -135,8 +135,7 @@ public class Dispatcher {
                     }
 
                     if (state != null && state.equals(JobState.PENDING)) {
-                        log("Scheduling job %d", job.getQueueID());
-                        //tp.execute(job);
+                        log("Scheduling job %s/%d", job.getProjectName(), job.getProjectJobID());
                         Future<?> f = tp.submit(job);
                         activeJobs.put(job, f);
                     } else {
