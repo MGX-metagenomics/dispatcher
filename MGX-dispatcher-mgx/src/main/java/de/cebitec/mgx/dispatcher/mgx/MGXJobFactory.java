@@ -40,7 +40,7 @@ public class MGXJobFactory implements JobFactoryI {
     FactoryHolder holder;
 
     private final Properties props = new Properties();
-    private ConnectionProviderI cp = new MGXConnectionProvider();
+    private final ConnectionProviderI cp = new MGXConnectionProvider();
 
     @PostConstruct
     public void init() {
@@ -63,8 +63,12 @@ public class MGXJobFactory implements JobFactoryI {
         } catch (IOException ex) {
             return;
         }
-        // register self
-        holder.registerFactory(MGX, this);
+        try {
+            // register self
+            holder.registerFactory(MGX, this);
+        } catch (MGXDispatcherException ex) {
+            Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @PreDestroy

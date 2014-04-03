@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,14 +24,11 @@ import java.util.logging.Logger;
 public class MGXJob extends JobI {
 
     // project-specific job id
-
     private final String conveyorGraph;
     private final String persistentDir;
     private final String conveyorValidate;
     private final String conveyorExecutable;
     private final ConnectionProviderI cc;
-    //private final DispatcherConfiguration config;
-    //private Connection pconn;
     private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
 
     public MGXJob(Dispatcher disp, String conveyorExec, String conveyorValidate, String persistentDir,
@@ -38,7 +36,6 @@ public class MGXJob extends JobI {
             long mgxJobId) throws MGXDispatcherException {
 
         super(disp, mgxJobId, projName, JobI.DEFAULT_PRIORITY);
-        //config = dispCfg;
         this.conveyorValidate = conveyorValidate;
         this.conveyorExecutable = conveyorExec;
         this.persistentDir = persistentDir;
@@ -54,17 +51,12 @@ public class MGXJob extends JobI {
     @Override
     public void process() {
         // build up command string
-        List<String> commands = new ArrayList<>();
+        List<String> commands = new ArrayList<>(4);
         commands.add(conveyorExecutable);
         commands.add(conveyorGraph);
         commands.add(getProjectName());
         commands.add(String.valueOf(getProjectJobID()));
 
-        StringBuilder cmd = new StringBuilder();
-        for (String s : commands) {
-            cmd.append(s);
-            cmd.append(" ");
-        }
         try {
             setState(JobState.RUNNING);
             setStartDate();
@@ -78,7 +70,7 @@ public class MGXJob extends JobI {
             return;
         }
 
-        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", cmd.toString().trim());
+        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", join(commands, " "));
 
         try {
 
@@ -290,15 +282,6 @@ public class MGXJob extends JobI {
             throw new JobException(ex);
         }
 
-//        try {
-//            // reconnect to database
-//            pconn = getProjectConnection(projectName);
-//            pconn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-//
-//        } catch (SQLException ex) {
-//            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-//            throw new JobException("reconnect failed: " + ex.getMessage());
-//        }
         JobState dbState = getState();
         if (dbState != state) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "DB inconsistent, expected {0}, got {1}", new Object[]{state, dbState});
@@ -478,5 +461,17 @@ public class MGXJob extends JobI {
 
     public void log(String msg, Object... args) {
         logger.log(Level.INFO, String.format(msg, args));
+    }
+
+    private static String join(final Iterable< ? extends Object> pColl, String separator) {
+        Iterator< ? extends Object> oIter;
+        if (pColl == null || (!(oIter = pColl.iterator()).hasNext())) {
+            return "";
+        }
+        StringBuilder oBuilder = new StringBuilder(String.valueOf(oIter.next() ));
+        while (oIter.hasNext()) {
+            oBuilder.append(separator).append(oIter.next());
+        }
+        return oBuilder.toString();
     }
 }
