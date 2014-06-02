@@ -140,6 +140,10 @@ public class Dispatcher {
                         activeJobs.put(job, f);
                     } else {
                         log("Not scheduling job %d due to unexpected state %s", job.getQueueID(), state.toString());
+                        log("Override in place, scheduling (FIXME)...");
+                        // OVERRIDE - state changes are broken?!?!
+                        Future<?> f = tp.submit(job);
+                        activeJobs.put(job, f);
                     }
                 }
             } else {

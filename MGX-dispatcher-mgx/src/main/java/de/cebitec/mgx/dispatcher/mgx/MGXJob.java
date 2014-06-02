@@ -77,7 +77,21 @@ public class MGXJob extends JobI {
             Process p = null;
             int exitCode = -1;
             try {
-                p = Runtime.getRuntime().exec(commands.toArray(new String[]{}));
+                Runtime r = Runtime.getRuntime();
+                if (r == null) {
+                    log("Could not obtain runtime.");
+                    setState(JobState.ABORTED);
+                    setFinishDate();
+                    return;
+                }
+                p = r.exec(commands.toArray(new String[]{}));
+                if (p == null) {
+                    log("Could not execute command: " + join(commands, " "));
+                    setState(JobState.ABORTED);
+                    setFinishDate();
+                    return;
+                }
+
                 exitCode = p.waitFor();
             } catch (InterruptedException ex) {
                 /*
@@ -430,7 +444,18 @@ public class MGXJob extends JobI {
         StringBuilder output = new StringBuilder();
         Integer exitCode = null;
         try {
-            Process p = Runtime.getRuntime().exec(argv);
+            Runtime r = Runtime.getRuntime();
+            if (r == null) {
+                log("Could not obtain runtime.");
+                return false;
+            }
+            Process p = r.exec(argv);
+            if (p == null) {
+                log("Could not execute command: " + join(commands, " "));
+                return false;
+            }
+            
+            // FIXME: move to thread
             try (BufferedReader stdout = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String s;
                 while ((s = stdout.readLine()) != null) {
@@ -468,7 +493,7 @@ public class MGXJob extends JobI {
         if (pColl == null || (!(oIter = pColl.iterator()).hasNext())) {
             return "";
         }
-        StringBuilder oBuilder = new StringBuilder(String.valueOf(oIter.next() ));
+        StringBuilder oBuilder = new StringBuilder(String.valueOf(oIter.next()));
         while (oIter.hasNext()) {
             oBuilder.append(separator).append(oIter.next());
         }
