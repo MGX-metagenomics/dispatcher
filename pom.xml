@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>de.cebitec.mgx</groupId>
-  <artifactId>MGX-dispatcher</artifactId>
-  <version>1.0-SNAPSHOT</version>
-  <packaging>pom</packaging>
-  <name>MGX-dispatcher Maven Enterprise Application</name>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>de.cebitec.mgx</groupId>
+    <artifactId>MGX-dispatcher</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>MGX-dispatcher Maven Enterprise Application</name>
     <build>
         <plugins>
             <plugin>
@@ -20,10 +20,24 @@
         </plugins>
     </build>
     <modules>
-    <module>MGX-dispatcher-ear</module>
-    <module>MGX-dispatcher-ejb</module>
-    <module>MGX-dispatcher-web</module>
-    <module>MGX-dispatcher-common</module>
-    <module>MGX-dispatcher-mgx</module>
-  </modules>
+        <module>MGX-dispatcher-ear</module>
+        <module>MGX-dispatcher-ejb</module>
+        <module>MGX-dispatcher-web</module>
+        <module>MGX-dispatcher-common</module>
+        <module>MGX-dispatcher-mgx</module>
+    </modules>
+
+    <distributionManagement>
+        <repository>
+            <id>artifactory</id>
+            <name>local-libs-release</name>
+            <url>http://${artifactory.host}/artifactory/libs-release-local</url>
+        </repository>
+        <snapshotRepository>
+            <id>artifactory</id>
+            <name>local-libs-snapshot</name>
+            <url>http://${artifactory.host}/artifactory/libs-snapshot-local</url>
+        </snapshotRepository>
+    </distributionManagement>
+
 </project>
