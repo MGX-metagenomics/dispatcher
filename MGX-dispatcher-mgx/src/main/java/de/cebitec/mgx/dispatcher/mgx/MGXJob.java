@@ -432,6 +432,17 @@ public class MGXJob extends JobI {
 
     @Override
     public boolean validate() throws JobException {
+
+        File validate = new File(conveyorValidate);
+        if (!validate.canRead() && validate.canExecute()) {
+            throw new JobException("Unable to access Conveyor executable.");
+        }
+
+        File graph = new File(getConveyorGraph());
+        if (!graph.canRead()) {
+            throw new JobException("Cannot read workflow file");
+        }
+
         // build up command string
         List<String> commands = new ArrayList<>();
         commands.add(conveyorValidate);
@@ -454,7 +465,7 @@ public class MGXJob extends JobI {
                 log("Could not execute command: " + join(commands, " "));
                 return false;
             }
-            
+
             // FIXME: move to thread
             try (BufferedReader stdout = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String s;
@@ -472,12 +483,14 @@ public class MGXJob extends JobI {
         } catch (IOException ex) {
             log(ex.getMessage());
         }
-
-        if (exitCode != null && exitCode.intValue() == 0) {
+        
+        if (exitCode != null && exitCode == 0) {
             return true;
+        } else {
+            log("Validation failed with exit code " + exitCode + ", commmand was "+ join(commands, " "));
         }
 
-        throw new JobException(output.toString());
+        throw new JobException(output.length() > 0 ? output.toString() : "Unknown internal error.");
     }
 
     public void log(String msg) {
