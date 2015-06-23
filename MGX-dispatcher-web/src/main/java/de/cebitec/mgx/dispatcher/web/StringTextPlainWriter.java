@@ -1,6 +1,5 @@
 package de.cebitec.mgx.dispatcher.web;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
@@ -18,26 +17,24 @@ import javax.ws.rs.ext.Provider;
  */
 @Provider
 @Produces(MediaType.TEXT_PLAIN)
-public class TextPlainWriter implements MessageBodyWriter<Boolean> {
+public class StringTextPlainWriter implements MessageBodyWriter<String> {
 
     @Override
     public boolean isWriteable(Class<?> type, Type type1, Annotation[] antns, MediaType mt) {
-        return type == Boolean.class;
+        return type == String.class;
     }
 
     @Override
-    public long getSize(Boolean t, Class<?> type, Type type1, Annotation[] antns, MediaType mt) {
+    public long getSize(String t, Class<?> type, Type type1, Annotation[] antns, MediaType mt) {
         return -1;
     }
-    
-    private byte[] buf = new byte[1];
 
     @Override
-    public void writeTo(Boolean t, Class<?> type, Type type1, Annotation[] antns, MediaType mt, MultivaluedMap<String, Object> mm, OutputStream out) throws IOException, WebApplicationException {
-        buf[0] = '0';
-        if (t) {
-            buf[0] = '1';
+    public void writeTo(String t, Class<?> type, Type type1, Annotation[] antns, MediaType mt, MultivaluedMap<String, Object> mm, OutputStream out) throws IOException, WebApplicationException {
+        byte[] bytes = t.getBytes();
+        out.write(bytes);
+        if (bytes[bytes.length-1] != '\n') {
+            out.write('\n');
         }
-        out.write(buf);
     }
 }
