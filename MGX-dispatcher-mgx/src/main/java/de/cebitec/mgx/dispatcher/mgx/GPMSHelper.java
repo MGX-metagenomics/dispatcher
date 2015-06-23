@@ -20,20 +20,23 @@ import javax.sql.DataSource;
 public class GPMSHelper {
 
     @EJB
-    DispatcherConfiguration config;
+    DispatcherConfiguration configxx;
     //
     @Resource(mappedName = "jdbc/GPMS")
     private DataSource gpmsds;
 
     private final static Logger logger = Logger.getLogger(GPMSHelper.class.getPackage().getName());
 
-    public String getJDBCURLforProject(String projName) throws MGXDispatcherException {
+    public String getJDBCURLforProject(String projName, String dsType) throws MGXDispatcherException {
 
-        Connection gpmsconn;  
+        Connection gpmsconn;
         try {
             gpmsconn = gpmsds.getConnection(); // getGPMSConnection(config);
         } catch (SQLException ex) {
             throw new MGXDispatcherException(ex);
+        }
+        if (gpmsconn == null) {
+            throw new MGXDispatcherException("Cannot connect to GPMS.");
         }
 
         String sql = "SELECT CONCAT('jdbc:', LOWER(DBMS_Type.name), '://', Host.hostname, ':',"
@@ -44,9 +47,9 @@ public class GPMSHelper {
                 + "      left join DataSource_DB on (DataSource._id = DataSource_DB._parent_id)"
                 + "      left join Host on (DataSource_DB.host_id = Host._id)"
                 + "      left join DBMS_Type on (DataSource_DB.dbms_type_id = DBMS_Type._id) "
-                + "WHERE Project.name=\"%s\"";
+                + "WHERE Project.name=\"%s\" AND DataSource_Type.name=\"%s\"";
         // + "WHERE Project.name=?";
-        sql = String.format(sql, projName);
+        sql = String.format(sql, projName, dsType);
         String jdbc = null;
         try (Statement stmt = gpmsconn.createStatement()) {
             try (ResultSet res = stmt.executeQuery(sql)) {
@@ -55,27 +58,18 @@ public class GPMSHelper {
                 }
             }
         } catch (SQLException e) {
-            log(e.getMessage());
         } finally {
             try {
                 gpmsconn.close();
             } catch (SQLException ex) {
             }
         }
+
+        if (jdbc == null) {
+            throw new MGXDispatcherException("Cannot lookup JDBC URL for project " + projName);
+        }
         return jdbc;
     }
-
-//    private Connection getGPMSConnection(DispatcherConfiguration config) {
-//        Connection c = null;
-//
-//        try {
-//            Class.forName(config.getGPMSDriverClass());
-//            c = DriverManager.getConnection(config.getGPMSURL(), config.getGPMSUser(), config.getGPMSPassword());
-//        } catch (ClassNotFoundException | SQLException ex) {
-//            log(ex.getMessage());
-//        }
-//        return c;
-//    }
 
     private void log(String msg) {
         logger.log(Level.INFO, msg);

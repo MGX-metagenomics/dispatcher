@@ -29,6 +29,7 @@ import javax.ejb.Startup;
 public class MGXJobFactory implements JobFactoryI {
 
     private final static String MGX = "MGX";
+    private final static String MGX_DATASOURCE_TYPE = "MGX";
 
     @EJB
     Dispatcher dispatcher;
@@ -77,15 +78,9 @@ public class MGXJobFactory implements JobFactoryI {
     }
 
     @Override
-    public JobI createJob(String projName, long jobId) {
-
-        try {
-            return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(), 
-                    getMGXPersistentDir(), cp, projName, jobId);
-        } catch (MGXDispatcherException ex) {
-            Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
+    public JobI createJob(String projName, long jobId) throws MGXDispatcherException {
+        return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
+                getMGXPersistentDir(), cp, projName, jobId);
     }
 
     private String getMGXUser() {
@@ -102,22 +97,21 @@ public class MGXJobFactory implements JobFactoryI {
 
     public interface ConnectionProviderI {
 
-        Connection getProjectConnection(String projName);
+        Connection getProjectConnection(String projName) throws MGXDispatcherException;
     }
 
     private class MGXConnectionProvider implements ConnectionProviderI {
 
         @Override
-        public Connection getProjectConnection(String projName) {
+        public Connection getProjectConnection(String projName) throws MGXDispatcherException {
 
             Connection c = null;
             try {
-                String url = gpms.getJDBCURLforProject(projName);
+                String url = gpms.getJDBCURLforProject(projName, MGX_DATASOURCE_TYPE);
                 c = DriverManager.getConnection(url, getMGXUser(), getMGXPassword());
-            } catch (SQLException | MGXDispatcherException ex) {
-                Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (SQLException ex) {
+                throw new MGXDispatcherException(ex);
             }
-            assert c != null;
             return c;
         }
     }

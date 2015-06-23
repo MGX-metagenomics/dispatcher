@@ -166,7 +166,7 @@ public class MGXJob extends JobI {
 
             conn.commit();
             conn.setAutoCommit(true);
-        } catch (SQLException ex) {
+        } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -213,15 +213,15 @@ public class MGXJob extends JobI {
             conn.commit();
             conn.setAutoCommit(true);
             conn.close();
-        } catch (SQLException ex) {
+        } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
-    @Override
-    public String getConveyorGraph() {
-        return conveyorGraph;
-    }
+//    @Override
+//    public String getConveyorGraph() {
+//        return conveyorGraph;
+//    }
 
     private void setStartDate() throws JobException {
         int numRows = 0;
@@ -232,7 +232,7 @@ public class MGXJob extends JobI {
                 stmt.close();
             }
             conn.close();
-        } catch (SQLException ex) {
+        } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
         }
@@ -251,7 +251,7 @@ public class MGXJob extends JobI {
                 stmt.close();
             }
             conn.close();
-        } catch (SQLException ex) {
+        } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
         }
@@ -320,7 +320,7 @@ public class MGXJob extends JobI {
                 stmt.close();
             }
             conn.close();
-        } catch (SQLException ex) {
+        } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex);
         }
@@ -376,7 +376,7 @@ public class MGXJob extends JobI {
             conn.commit();
             conn.setAutoCommit(true);
             conn.close();
-        } catch (SQLException ex) {
+        } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
             try {
                 setState(JobState.FAILED);
@@ -408,7 +408,7 @@ public class MGXJob extends JobI {
         }
     }
 
-    private Connection getProjectConnection() {
+    private Connection getProjectConnection() throws MGXDispatcherException {
         return cc.getProjectConnection(getProjectName());
     }
 
@@ -438,7 +438,7 @@ public class MGXJob extends JobI {
             throw new JobException("Unable to access Conveyor executable.");
         }
 
-        File graph = new File(getConveyorGraph());
+        File graph = new File(conveyorGraph);
         if (!graph.canRead()) {
             throw new JobException("Cannot read workflow file");
         }
@@ -446,7 +446,7 @@ public class MGXJob extends JobI {
         // build up command string
         List<String> commands = new ArrayList<>();
         commands.add(conveyorValidate);
-        commands.add(getConveyorGraph());
+        commands.add(conveyorGraph);
         commands.add(getProjectName());
         commands.add(String.valueOf(getProjectJobID()));
 
@@ -483,11 +483,11 @@ public class MGXJob extends JobI {
         } catch (IOException ex) {
             log(ex.getMessage());
         }
-        
+
         if (exitCode != null && exitCode == 0) {
             return true;
         } else {
-            log("Validation failed with exit code " + exitCode + ", commmand was "+ join(commands, " "));
+            log("Validation failed with exit code " + exitCode + ", commmand was " + join(commands, " "));
         }
 
         throw new JobException(output.length() > 0 ? output.toString() : "Unknown internal error.");
