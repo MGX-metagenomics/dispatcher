@@ -64,6 +64,9 @@ public class JobReceiver {
 
     private JobI getJob(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
         JobFactoryI fact = factories.getFactory(projClass);
+        if (fact == null) {
+            throw new MGXDispatcherException("Unknown project class: "+ projClass);
+        }
         return fact.createJob(projName, projectJobId);
     }
 }

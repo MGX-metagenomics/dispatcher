@@ -125,7 +125,12 @@ public class Dispatcher {
 
         while ((!tp.isTerminating()) && (queue.size() > 0)) {
             if (tp.getActiveCount() < config.getMaxJobs()) {
-                JobI job = queue.nextJob();
+                JobI job = null;
+                try {
+                    job = queue.nextJob();
+                } catch (MGXDispatcherException ex) {
+                    Logger.getLogger(Dispatcher.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 if (job != null) {
                     JobState state = null;
                     try {
@@ -139,7 +144,7 @@ public class Dispatcher {
                         Future<?> f = tp.submit(job);
                         activeJobs.put(job, f);
                     } else {
-                        log("Not scheduling job %d due to unexpected state %s", job.getQueueID(), state.toString());
+                        log("Not scheduling job %d in project %s due to unexpected state %s", job.getProjectJobID(), job.getProjectName(), state.toString());
                         log("Override in place, scheduling (FIXME)...");
                         // OVERRIDE - state changes are broken?!?!
                         Future<?> f = tp.submit(job);

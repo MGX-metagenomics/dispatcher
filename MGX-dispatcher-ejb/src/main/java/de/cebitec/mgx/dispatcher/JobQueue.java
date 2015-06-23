@@ -78,7 +78,7 @@ public class JobQueue {
         }
 
         if (queueId != -1) {
-            job.setQueueID(queueId);
+            //job.setQueueID(queueId);
             return queueId;
         }
         throw new MGXDispatcherException("No queue ID returned.");
@@ -101,7 +101,7 @@ public class JobQueue {
         return false;
     }
 
-    public JobI nextJob() {
+    public JobI nextJob() throws MGXDispatcherException {
         int queueId = -1;
 
         String projName = null;
@@ -132,7 +132,7 @@ public class JobQueue {
             }
             if (fact != null) {
                 job = fact.createJob(projName, projectJobId);
-                job.setQueueID(queueId);
+                //job.setQueueID(queueId);
             } else {
                 log("No job factory found for project class " + projClass);
             }

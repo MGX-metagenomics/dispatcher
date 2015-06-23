@@ -16,15 +16,15 @@ public abstract class JobI implements Runnable {
 //        this(d, DEFAULT_PRIORITY);
 //    }
 
-    public JobI(Dispatcher d, long projJid, String projName, int prio) {
+    public JobI(Dispatcher d, long projJobId, String projName, int prio) {
         dispatcher = d;
-        projectJobId = projJid;
+        projectJobId = projJobId;
         projectName = projName;
         priority = prio;
     }
 
     private final Dispatcher dispatcher;
-    private int priority;
+    private final int priority;
     private final long projectJobId;
     private final String projectName;
 
@@ -48,7 +48,7 @@ public abstract class JobI implements Runnable {
 
     public long getProjectJobID() { return projectJobId; }
 
-    public abstract String getConveyorGraph();
+    //public abstract String getConveyorGraph();
 
     public abstract String getProjectClass();
 
@@ -66,23 +66,23 @@ public abstract class JobI implements Runnable {
         }
         dispatcher.handleExitingJob(this);
     }
-    private int queueID = -1;
+    //private int queueID = -1;
 
-    public void setQueueID(int qId) {
-        queueID = qId;
-    }
-
-    public int getQueueID() {
-        return queueID;
-    }
+//    public void setQueueID(int qId) {
+//        queueID = qId;
+//    }
+//
+//    public int getQueueID() {
+//        return queueID;
+//    }
 
     public int getPriority() {
         return priority;
     }
 
-    public void setPriority(int priority) {
-        this.priority = priority;
-    }
+//    public void setPriority(int priority) {
+//        this.priority = priority;
+//    }
 
     @Override
     public int hashCode() {
