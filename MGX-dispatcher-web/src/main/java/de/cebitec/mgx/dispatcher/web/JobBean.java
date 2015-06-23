@@ -2,11 +2,13 @@ package de.cebitec.mgx.dispatcher.web;
 
 import de.cebitec.mgx.dispatcher.JobReceiver;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
+import de.cebitec.mgx.dispatcher.web.exception.MGXWebException;
 import java.util.UUID;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 /**
  *
@@ -35,14 +37,20 @@ public class JobBean {
 
     @DELETE
     @Path("cancel/{projClass}/{projName}/{id}")
-    public void cancel(@PathParam("projClass") String projClass, @PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
-        receiver.cancel(projClass, projName, jobId);
+    public Response cancel(@PathParam("projClass") String projClass, @PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXWebException {
+        try {
+            receiver.cancel(projClass, projName, jobId);
+        } catch (MGXDispatcherException ex) {
+            throw new MGXWebException(ex.getMessage());
+        }
+        return Response.ok().build();
     }
 
     @DELETE
     @Path("delete/{projClass}/{projName}/{id}")
-    public void delete(@PathParam("projClass") String projClass, @PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
+    public Response delete(@PathParam("projClass") String projClass, @PathParam("projName") String projName, @PathParam("id") long jobId) throws MGXDispatcherException {
         receiver.delete(projClass, projName, jobId);
+        return Response.ok().build();
     }
 
     @GET
