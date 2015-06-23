@@ -28,23 +28,4 @@
         <servlet-name>Jersey Web Application</servlet-name>
         <url-pattern>/webresources/*</url-pattern>
     </servlet-mapping>
- <!--   <security-constraint>
-        <web-resource-collection>
-            <web-resource-name>Secure</web-resource-name>
-            <url-pattern>/webresources/*</url-pattern>
-        </web-resource-collection>
-        <auth-constraint>
-            <role-name>gpmsuser</role-name>
-        </auth-constraint>
-       
-    </security-constraint>
-    <login-config>
-        <auth-method>BASIC</auth-method>
-        <realm-name>GPMSRealm</realm-name>
-    </login-config>
-    <security-role>
-        <description/>
-        <role-name>gpmsuser</role-name>
-    </security-role>
-    -->
 </web-app>
