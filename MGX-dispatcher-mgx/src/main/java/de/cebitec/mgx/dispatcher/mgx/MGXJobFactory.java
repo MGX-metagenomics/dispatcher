@@ -55,15 +55,12 @@ public class MGXJobFactory implements JobFactoryI {
         InputStream cfg = getClass().getClassLoader().getResourceAsStream("de/cebitec/mgx/dispatcher/mgx/config.properties");
         try {
             props.load(cfg);
+            cfg.close();
         } catch (IOException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
             return;
         }
-        try {
-            cfg.close();
-        } catch (IOException ex) {
-            return;
-        }
+        
         try {
             // register self
             holder.registerFactory(MGX, this);
