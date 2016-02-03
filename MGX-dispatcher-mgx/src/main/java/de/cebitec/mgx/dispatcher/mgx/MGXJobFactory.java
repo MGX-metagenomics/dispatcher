@@ -36,7 +36,7 @@ public class MGXJobFactory implements JobFactoryI {
     @EJB
     DispatcherConfiguration config;
     @EJB
-    GPMSHelper gpms;
+    GPMSHelperI gpms;
     @EJB
     FactoryHolder holder;
 

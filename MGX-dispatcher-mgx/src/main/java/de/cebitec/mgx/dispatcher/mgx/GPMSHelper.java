@@ -3,8 +3,6 @@ package de.cebitec.mgx.dispatcher.mgx;
 import de.cebitec.mgx.dispatcher.DispatcherConfiguration;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.sql.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.ejb.Singleton;
@@ -17,7 +15,7 @@ import javax.sql.DataSource;
  */
 @Singleton
 @Startup
-public class GPMSHelper {
+public class GPMSHelper implements GPMSHelperI {
 
     @EJB
     DispatcherConfiguration configxx;
@@ -25,8 +23,8 @@ public class GPMSHelper {
     @Resource(mappedName = "jdbc/GPMS")
     private DataSource gpmsds;
 
-    private final static Logger logger = Logger.getLogger(GPMSHelper.class.getPackage().getName());
 
+    @Override
     public String getJDBCURLforProject(String projName, String dsType) throws MGXDispatcherException {
 
         Connection gpmsconn;
@@ -71,11 +69,4 @@ public class GPMSHelper {
         return jdbc;
     }
 
-    private void log(String msg) {
-        logger.log(Level.INFO, msg);
-    }
-
-    private void log(String msg, Object... args) {
-        logger.log(Level.INFO, String.format(msg, args));
-    }
 }
