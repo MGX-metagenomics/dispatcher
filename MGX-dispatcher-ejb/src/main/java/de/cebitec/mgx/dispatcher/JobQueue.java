@@ -41,8 +41,12 @@ public class JobQueue {
     }
 
     @PreDestroy
-    public void close() throws SQLException {
-        jobqueue.close();
+    public void close() {
+        try {
+            jobqueue.close();
+        } catch (SQLException ex) {
+            Logger.getLogger(JobQueue.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public int createJob(JobI job) throws MGXDispatcherException {
