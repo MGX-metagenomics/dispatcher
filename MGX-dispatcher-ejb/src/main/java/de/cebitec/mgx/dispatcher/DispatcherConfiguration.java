@@ -15,6 +15,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
+import javax.naming.NamingException;
 
 /**
  *
@@ -85,15 +86,48 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
     }
 
     private void writeDispatcherHostFile() throws UnknownHostException, IOException {
-        InetAddress addr = InetAddress.getLocalHost();
-        String hostname = addr.getHostName();
-
         Properties p = new Properties();
-        p.put("mgx_dispatcherhost", hostname);
+        p.put("mgx_dispatcherhost", getHostName());
         p.put("mgx_dispatchertoken", authToken.toString());
 
         try (FileOutputStream fos = new FileOutputStream(dispatcherHostFile)) {
             p.store(fos, null);
         }
+    }
+
+    /**
+     * http://stackoverflow.com/questions/7097623/need-to-perform-a-reverse-dns-lookup-of-a-particular-ip-address-in-java
+     * 
+     */
+    private static String getHostName() throws UnknownHostException {
+        String[] bytes = InetAddress.getLocalHost().getHostAddress().split("\\.");
+        if (bytes.length == 4) {
+            try {
+                final Properties env = new Properties();
+                env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+                final javax.naming.directory.DirContext ctx = new javax.naming.directory.InitialDirContext(env);
+                final String reverseDnsDomain = bytes[3] + "." + bytes[2] + "." + bytes[1] + "." + bytes[0] + ".in-addr.arpa";
+                final javax.naming.directory.Attributes attrs = ctx.getAttributes(reverseDnsDomain, new String[]{"PTR",});
+                for (final javax.naming.NamingEnumeration<? extends javax.naming.directory.Attribute> ae = attrs.getAll(); ae.hasMoreElements();) {
+                    final javax.naming.directory.Attribute attr = ae.next();
+                    final String attrId = attr.getID();
+                    for (final java.util.Enumeration<?> vals = attr.getAll(); vals.hasMoreElements();) {
+                        String value = vals.nextElement().toString();
+                        if ("PTR".equals(attrId)) {
+                            final int len = value.length();
+                            if (value.charAt(len - 1) == '.') {
+                                value = value.substring(0, len - 1);
+                            }
+                            return value;
+                        }
+                    }
+                }
+                ctx.close();
+            } catch (final NamingException e) {
+                // No reverse DNS that we could find, try with InetAddress
+                System.out.print(""); // NO-OP
+            }
+        }
+        return null;
     }
 }
