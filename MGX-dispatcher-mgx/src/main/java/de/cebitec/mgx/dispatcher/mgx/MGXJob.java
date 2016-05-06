@@ -183,7 +183,7 @@ public class MGXJob extends JobI {
                 stmt.close();
             }
 
-            // remove observations
+            // remove attribute counts
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
