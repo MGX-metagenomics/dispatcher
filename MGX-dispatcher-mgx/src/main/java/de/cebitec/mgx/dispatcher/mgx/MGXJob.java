@@ -9,11 +9,13 @@ import de.cebitec.mgx.dispatcher.mgx.MGXJobFactory.ConnectionProviderI;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,9 +31,10 @@ public class MGXJob extends JobI {
     private final String conveyorValidate;
     private final String conveyorExecutable;
     private final ConnectionProviderI cc;
+    private final Executor executor;
     private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
 
-    public MGXJob(Dispatcher disp, String conveyorExec, String conveyorValidate, String persistentDir,
+    public MGXJob(Dispatcher disp, Executor executor, String conveyorExec, String conveyorValidate, String persistentDir,
             ConnectionProviderI cc, String projName,
             long mgxJobId) throws MGXDispatcherException {
 
@@ -40,6 +43,7 @@ public class MGXJob extends JobI {
         this.conveyorExecutable = conveyorExec;
         this.persistentDir = persistentDir;
         this.cc = cc;
+        this.executor = executor;
         conveyorGraph = lookupGraphFile(mgxJobId);
     }
 
@@ -222,7 +226,6 @@ public class MGXJob extends JobI {
 //    public String getConveyorGraph() {
 //        return conveyorGraph;
 //    }
-
     private void setStartDate() throws JobException {
         int numRows = 0;
         try (Connection conn = getProjectConnection()) {
@@ -452,27 +455,26 @@ public class MGXJob extends JobI {
 
         String[] argv = commands.toArray(new String[]{});
 
-        StringBuilder output = new StringBuilder();
         Integer exitCode = null;
+
+        Process p = null;
+        StreamLogger stdout, stderr = null;
         try {
             Runtime r = Runtime.getRuntime();
             if (r == null) {
                 log("Could not obtain runtime.");
                 return false;
             }
-            Process p = r.exec(argv);
+            p = r.exec(argv);
             if (p == null) {
                 log("Could not execute command: " + join(commands, " "));
                 return false;
             }
 
-            // FIXME: move to thread
-            try (BufferedReader stdout = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String s;
-                while ((s = stdout.readLine()) != null) {
-                    output.append(s);
-                }
-            }
+            stdout = new StreamLogger(p.getInputStream());
+            stderr = new StreamLogger(p.getErrorStream());
+            executor.execute(stdout);
+            executor.execute(stderr);
 
             while (exitCode == null) {
                 try {
@@ -482,6 +484,17 @@ public class MGXJob extends JobI {
             }
         } catch (IOException ex) {
             log(ex.getMessage());
+        } finally {
+            exiting = true;
+            if (p != null) {
+                try {
+                    p.getInputStream().close();
+                    p.getErrorStream().close();
+                } catch (IOException ex) {
+                    Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, ex);
+                }
+                p.destroy();
+            }
         }
 
         if (exitCode != null && exitCode == 0) {
@@ -490,7 +503,9 @@ public class MGXJob extends JobI {
             log("Validation failed with exit code " + exitCode + ", commmand was " + join(commands, " "));
         }
 
-        throw new JobException(output.length() > 0 ? output.toString() : "Unknown internal error.");
+        String output = stderr != null ? stderr.getOutput() : "";
+
+        throw new JobException(output.length() > 0 ? output : "Unknown internal error.");
     }
 
     public void log(String msg) {
@@ -511,5 +526,38 @@ public class MGXJob extends JobI {
             oBuilder.append(separator).append(oIter.next());
         }
         return oBuilder.toString();
+    }
+
+    private volatile boolean exiting = false;
+
+    private class StreamLogger implements Runnable {
+
+        private final InputStream is;
+        private final StringBuilder output = new StringBuilder();
+
+        StreamLogger(InputStream in) {
+            is = in;
+        }
+
+        public String getOutput() {
+            return output.toString();
+        }
+
+        @Override
+        public void run() {
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
+                String line;
+                while (!exiting && ((line = in.readLine()) != null)) {
+                    if (!line.trim().isEmpty()) {
+                        output.append(line);
+                        output.append(System.lineSeparator());
+                    }
+                }
+            } catch (IOException ex) {
+                if (!exiting) {
+                    Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
     }
 }

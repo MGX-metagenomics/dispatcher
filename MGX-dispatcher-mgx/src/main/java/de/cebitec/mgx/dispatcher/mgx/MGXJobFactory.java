@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
@@ -51,6 +52,8 @@ public class MGXJobFactory implements JobFactoryI {
     GPMSDataLoaderI loader;
     @EJB
     FactoryHolder holder;
+    @EJB
+    Executor executor;
 
     private final Properties props = new Properties();
     private final ConnectionProviderI cp = new MGXConnectionProvider();
@@ -88,7 +91,7 @@ public class MGXJobFactory implements JobFactoryI {
 
     @Override
     public JobI createJob(String projName, long jobId) throws MGXDispatcherException {
-        return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
+        return new MGXJob(dispatcher, executor, config.getConveyorExecutable(), config.getValidatorExecutable(),
                 getMGXPersistentDir(), cp, projName, jobId);
     }
 
