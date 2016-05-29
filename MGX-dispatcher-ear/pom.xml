@@ -22,9 +22,9 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.n0pe.mojo</groupId>
+                <groupId>org.codeartisans.asadmin</groupId>
                 <artifactId>asadmin-maven-plugin</artifactId>
-                <version>0.3</version>
+                <version>0.12</version>
                 <executions>
                     <execution>
                         <phase>install</phase>
