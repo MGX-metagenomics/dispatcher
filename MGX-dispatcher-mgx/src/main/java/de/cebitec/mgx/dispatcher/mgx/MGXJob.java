@@ -34,7 +34,9 @@ public class MGXJob extends JobI {
     private final Executor executor;
     private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
 
-    public MGXJob(Dispatcher disp, Executor executor, String conveyorExec, String conveyorValidate, String persistentDir,
+    public MGXJob(Dispatcher disp, Executor executor, 
+            String conveyorExec, String conveyorValidate, 
+            String persistentDir,
             ConnectionProviderI cc, String projName,
             long mgxJobId) throws MGXDispatcherException {
 
@@ -107,7 +109,7 @@ public class MGXJob extends JobI {
             } catch (IOException ex) {
                 // does this happen at all? under which conditions? log exception and
                 // treat like job was cancelled, for now..
-                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, ex);
                 setState(JobState.ABORTED);
                 setFinishDate();
                 return;
@@ -447,34 +449,29 @@ public class MGXJob extends JobI {
         }
 
         // build up command string
-        List<String> commands = new ArrayList<>();
+        List<String> commands = new ArrayList<>(4);
         commands.add(conveyorValidate);
         commands.add(conveyorGraph);
         commands.add(getProjectName());
         commands.add(String.valueOf(getProjectJobID()));
 
-        String[] argv = commands.toArray(new String[]{});
+        ProcessBuilder pBuilder = new ProcessBuilder(commands);
+        pBuilder.redirectErrorStream(true);
 
         Integer exitCode = null;
-
         Process p = null;
-        StreamLogger stdout, stderr = null;
+        StreamLogger procOutput = null;
+
         try {
-            Runtime r = Runtime.getRuntime();
-            if (r == null) {
-                log("Could not obtain runtime.");
-                return false;
-            }
-            p = r.exec(argv);
+            busy = true;
+            p = pBuilder.start();
             if (p == null) {
                 log("Could not execute command: " + join(commands, " "));
                 return false;
             }
 
-            stdout = new StreamLogger(p.getInputStream());
-            stderr = new StreamLogger(p.getErrorStream());
-            executor.execute(stdout);
-            executor.execute(stderr);
+            procOutput = new StreamLogger(p.getInputStream());
+            executor.execute(procOutput);
 
             while (exitCode == null) {
                 try {
@@ -485,11 +482,10 @@ public class MGXJob extends JobI {
         } catch (IOException ex) {
             log(ex.getMessage());
         } finally {
-            exiting = true;
+            busy = false;
             if (p != null) {
                 try {
                     p.getInputStream().close();
-                    p.getErrorStream().close();
                 } catch (IOException ex) {
                     Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, ex);
                 }
@@ -503,7 +499,7 @@ public class MGXJob extends JobI {
             log("Validation failed with exit code " + exitCode + ", commmand was " + join(commands, " "));
         }
 
-        String output = stderr != null ? stderr.getOutput() : "";
+        String output = procOutput != null ? procOutput.getOutput() : "";
 
         throw new JobException(output.length() > 0 ? output : "Unknown internal error.");
     }
@@ -528,7 +524,7 @@ public class MGXJob extends JobI {
         return oBuilder.toString();
     }
 
-    private volatile boolean exiting = false;
+    private volatile boolean busy = false;
 
     private class StreamLogger implements Runnable {
 
@@ -545,19 +541,29 @@ public class MGXJob extends JobI {
 
         @Override
         public void run() {
+            String oldName = Thread.currentThread().getName();
+            Logger.getLogger(getClass().getName()).log(Level.INFO, "StreamLogger running on {0}", oldName);
+            Thread.currentThread().setName("StreamLogger-" + getProjectName() + getProjectJobID());
             try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
                 String line;
-                while (!exiting && ((line = in.readLine()) != null)) {
-                    if (!line.trim().isEmpty()) {
-                        output.append(line);
-                        output.append(System.lineSeparator());
+                while (busy || in.ready()) {
+                    if (in.ready()) {
+                        line = in.readLine();
+                        if (line != null && !line.trim().isEmpty()) {
+                            output.append(line);
+                            output.append(System.lineSeparator());
+                            Logger.getLogger(getClass().getName()).log(Level.INFO, line);
+                        }
+                    } else {
+                        Thread.yield();
                     }
                 }
             } catch (IOException ex) {
-                if (!exiting) {
-                    Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, ex);
-                }
+                Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, ex);
+            } finally {
+                Thread.currentThread().setName(oldName);
             }
+            Logger.getLogger(getClass().getName()).log(Level.INFO, "StreamLogger run() complete.");
         }
     }
 }
