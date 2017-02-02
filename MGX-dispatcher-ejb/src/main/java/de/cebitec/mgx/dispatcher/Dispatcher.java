@@ -180,6 +180,9 @@ public class Dispatcher {
             if (job.validate()) {
                 job.setState(JobState.VERIFIED);
                 return true;
+            } else {
+                job.setState(JobState.FAILED);
+                return false;
             }
         } catch (JobException ex) {
             log(ex.getMessage());
