@@ -6,6 +6,10 @@ import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import de.cebitec.mgx.dispatcher.mgx.MGXJobFactory.ConnectionProviderI;
+import de.cebitec.mgx.sequence.DNASequenceI;
+import de.cebitec.mgx.sequence.SeqReaderFactory;
+import de.cebitec.mgx.sequence.SeqReaderI;
+import de.cebitec.mgx.sequence.SeqStoreException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -34,8 +38,8 @@ public class MGXJob extends JobI {
     private final Executor executor;
     private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
 
-    public MGXJob(Dispatcher disp, Executor executor, 
-            String conveyorExec, String conveyorValidate, 
+    public MGXJob(Dispatcher disp, Executor executor,
+            String conveyorExec, String conveyorValidate,
             String persistentDir,
             ConnectionProviderI cc, String projName,
             long mgxJobId) throws MGXDispatcherException {
@@ -274,7 +278,7 @@ public class MGXJob extends JobI {
             conn.setAutoCommit(false);
 
             // acquire row lock
-            try (PreparedStatement stmt = conn.prepareStatement("SELECT job_state FROM job where id=? FOR UPDATE")) {
+            try (PreparedStatement stmt = conn.prepareStatement("SELECT job_state FROM job WHERE id=? FOR UPDATE")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
@@ -435,8 +439,38 @@ public class MGXJob extends JobI {
         return "MGX";
     }
 
+    private String getDBFile() throws JobException {
+        String sql = "SELECT seqrun.dbfile FROM job LEFT JOIN seqrun ON (job.seqrun_id=seqrun.id) WHERE job.id=?";
+        String dbFile = null;
+        try (Connection conn = getProjectConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, getProjectJobID());
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        dbFile = rs.getString(1);
+                    }
+                    rs.close();
+                }
+                stmt.close();
+            }
+            conn.close();
+        } catch (SQLException | MGXDispatcherException ex) {
+            throw new JobException(ex.getMessage());
+        }
+        return dbFile;
+    }
+
     @Override
     public boolean validate() throws JobException {
+
+        // make sure sequence store can be accessed
+        try (SeqReaderI<? extends DNASequenceI> reader = SeqReaderFactory.getReader(getDBFile())) {
+            if (reader == null || !reader.hasMoreElements()) {
+                throw new JobException("Unable to access sequence store");
+            }
+        } catch (SeqStoreException ex) {
+            throw new JobException(ex.getMessage());
+        }
 
         File validate = new File(conveyorValidate);
         if (!validate.canRead() && validate.canExecute()) {
@@ -497,11 +531,9 @@ public class MGXJob extends JobI {
             return true;
         } else {
             log("Validation failed with exit code " + exitCode + ", commmand was " + join(commands, " "));
+            String output = procOutput != null ? procOutput.getOutput() : "";
+            throw new JobException(output.length() > 0 ? output : "No validation output received.");
         }
-
-        String output = procOutput != null ? procOutput.getOutput() : "";
-
-        throw new JobException(output.length() > 0 ? output : "Unknown internal error.");
     }
 
     public void log(String msg) {
@@ -542,7 +574,7 @@ public class MGXJob extends JobI {
         @Override
         public void run() {
             String oldName = Thread.currentThread().getName();
-            Logger.getLogger(getClass().getName()).log(Level.INFO, "StreamLogger running on {0}", oldName);
+            //Logger.getLogger(getClass().getName()).log(Level.INFO, "StreamLogger running on {0}", oldName);
             Thread.currentThread().setName("StreamLogger-" + getProjectName() + getProjectJobID());
             try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
                 String line;
@@ -563,7 +595,7 @@ public class MGXJob extends JobI {
             } finally {
                 Thread.currentThread().setName(oldName);
             }
-            Logger.getLogger(getClass().getName()).log(Level.INFO, "StreamLogger run() complete.");
+            //Logger.getLogger(getClass().getName()).log(Level.INFO, "StreamLogger run() complete.");
         }
     }
 }
