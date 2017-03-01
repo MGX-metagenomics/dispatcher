@@ -1,7 +1,5 @@
 package de.cebitec.mgx.dispatcher.client;
 
-
-
 import de.cebitec.mgx.dispatcher.common.DispatcherConfigBase;
 import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
 import java.io.File;
@@ -17,16 +15,14 @@ import javax.ejb.Startup;
  *
  * @author sjaenick
  */
-@Singleton(mappedName = "MGXDispatcherConfiguration")
+@Singleton
 @Startup
 public class MGXDispatcherConfiguration extends DispatcherConfigBase {
-
-    private final Properties config = new Properties();
 
     public MGXDispatcherConfiguration() {
     }
 
-    public String getDispatcherHost() throws MGXDispatcherException {
+    public final String getDispatcherHost() throws MGXDispatcherException {
 
         /*
          * dispatcher host might be changing, therefore we have to read
@@ -57,7 +53,7 @@ public class MGXDispatcherConfiguration extends DispatcherConfigBase {
         return p.getProperty("mgx_dispatcherhost");
     }
 
-    public String getDispatcherToken() throws MGXDispatcherException {
+    public final String getDispatcherToken() throws MGXDispatcherException {
 
         /*
          * dispatcher host might be changing, therefore we have to read
@@ -86,12 +82,5 @@ public class MGXDispatcherConfiguration extends DispatcherConfigBase {
         }
 
         return p.getProperty("mgx_dispatchertoken");
-    }
-
-    /*
-     * internal conversion
-     */
-    private int getInt(String key) {
-        return Integer.parseInt(config.getProperty(key));
     }
 }
