@@ -24,9 +24,10 @@ public class JobReceiver {
         JobI job = getJob(projClass, projName, projectJobId);
         if (job != null) {
             try {
-                if (!job.getState().equals(JobState.SUBMITTED)) {
+                if (!job.getState().equals(JobState.VERIFIED)) {
                     throw new MGXDispatcherException("Job is in invalid state " + job.getState());
                 }
+                job.setState(JobState.SUBMITTED);
             } catch (JobException ex) {
                 throw new MGXDispatcherException(ex);
             }
