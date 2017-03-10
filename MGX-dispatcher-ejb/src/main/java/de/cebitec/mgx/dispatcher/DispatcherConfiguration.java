@@ -30,6 +30,18 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
 
     @PostConstruct
     public void create() {
+        read();
+
+        authToken = UUID.randomUUID();
+        try {
+            // write dispatcher host file
+            writeDispatcherHostFile();
+        } catch (IOException ex) {
+            Logger.getLogger(DispatcherConfiguration.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    private void read() {
         StringBuilder cfgFile = new StringBuilder(System.getProperty("user.dir"));
         cfgFile.append(File.separator);
         cfgFile.append("mgx_dispatcher.properties");
@@ -43,14 +55,6 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
             in.close();
         } catch (IOException ex) {
             //throw new MGXDispatcherException(ex);
-        }
-
-        authToken = UUID.randomUUID();
-        try {
-            // write dispatcher host file
-            writeDispatcherHostFile();
-        } catch (IOException ex) {
-            Logger.getLogger(DispatcherConfiguration.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -70,6 +74,7 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
     }
 
     public int getMaxJobs() {
+        read();
         return Integer.parseInt(config.getProperty("mgx_max_parallel_jobs"));
     }
 
@@ -97,7 +102,7 @@ public class DispatcherConfiguration extends DispatcherConfigBase {
 
     /**
      * http://stackoverflow.com/questions/7097623/need-to-perform-a-reverse-dns-lookup-of-a-particular-ip-address-in-java
-     * 
+     *
      */
     private static String getHostName() throws UnknownHostException {
         String[] bytes = InetAddress.getLocalHost().getHostAddress().split("\\.");
