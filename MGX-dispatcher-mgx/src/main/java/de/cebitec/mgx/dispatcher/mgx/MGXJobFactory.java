@@ -6,7 +6,7 @@ import de.cebitec.gpms.core.GPMSException;
 import de.cebitec.gpms.core.ProjectClassI;
 import de.cebitec.gpms.core.ProjectI;
 import de.cebitec.gpms.core.RoleI;
-import de.cebitec.gpms.db.DataSourceFactory;
+import de.cebitec.gpms.db.sql.DataSourceFactory;
 import de.cebitec.gpms.model.ProjectClass;
 import de.cebitec.gpms.model.Role;
 import de.cebitec.gpms.util.GPMSDataLoaderI;
@@ -21,7 +21,6 @@ import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
@@ -52,8 +51,6 @@ public class MGXJobFactory implements JobFactoryI {
     GPMSDataLoaderI loader;
     @EJB
     FactoryHolder holder;
-    @EJB
-    Executor executor;
 
     private final Properties props = new Properties();
     private final ConnectionProviderI cp = new MGXConnectionProvider();
@@ -91,7 +88,7 @@ public class MGXJobFactory implements JobFactoryI {
 
     @Override
     public JobI createJob(String projName, long jobId) throws MGXDispatcherException {
-        return new MGXJob(dispatcher, executor, config.getConveyorExecutable(), config.getValidatorExecutable(),
+        return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
                 getMGXPersistentDir(), cp, projName, jobId);
     }
 

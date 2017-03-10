@@ -10,16 +10,10 @@ import de.cebitec.mgx.sequence.DNASequenceI;
 import de.cebitec.mgx.sequence.SeqReaderFactory;
 import de.cebitec.mgx.sequence.SeqReaderI;
 import de.cebitec.mgx.sequence.SeqStoreException;
-import java.io.BufferedReader;
+import de.cebitec.mgx.streamlogger.StringLogger;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,10 +29,9 @@ public class MGXJob extends JobI {
     private final String conveyorValidate;
     private final String conveyorExecutable;
     private final ConnectionProviderI cc;
-    private final Executor executor;
     private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
 
-    public MGXJob(Dispatcher disp, Executor executor,
+    public MGXJob(Dispatcher disp,
             String conveyorExec, String conveyorValidate,
             String persistentDir,
             ConnectionProviderI cc, String projName,
@@ -49,7 +42,6 @@ public class MGXJob extends JobI {
         this.conveyorExecutable = conveyorExec;
         this.persistentDir = persistentDir;
         this.cc = cc;
-        this.executor = executor;
         conveyorGraph = lookupGraphFile(mgxJobId);
     }
 
@@ -60,83 +52,68 @@ public class MGXJob extends JobI {
 
     @Override
     public void process() {
-        // build up command string
-        List<String> commands = new ArrayList<>(4);
-        commands.add(conveyorExecutable);
-        commands.add(conveyorGraph);
-        commands.add(getProjectName());
-        commands.add(String.valueOf(getProjectJobID()));
+
+        String[] commands = new String[4];
+        commands[0] = conveyorExecutable;
+        commands[1] = conveyorGraph;
+        commands[2] = getProjectName();
+        commands[3] = String.valueOf(getProjectJobID());
 
         try {
             setState(JobState.RUNNING);
             setStartDate();
         } catch (JobException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-            try {
-                setState(JobState.FAILED);
-            } catch (JobException ex1) {
-                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
-            }
+            failed();
             return;
         }
 
         Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", join(commands, " "));
 
+        Process p = null;
+
         try {
+            ProcessBuilder pBuilder = new ProcessBuilder(commands);
+            pBuilder.redirectErrorStream(true);
 
-            Process p = null;
-            int exitCode = -1;
-            try {
-                Runtime r = Runtime.getRuntime();
-                if (r == null) {
-                    log("Could not obtain runtime.");
-                    setState(JobState.ABORTED);
-                    setFinishDate();
-                    return;
-                }
-                p = r.exec(commands.toArray(new String[]{}));
-                if (p == null) {
-                    log("Could not execute command: " + join(commands, " "));
-                    setState(JobState.ABORTED);
-                    setFinishDate();
-                    return;
-                }
-
-                exitCode = p.waitFor();
-            } catch (InterruptedException ex) {
-                /*
-                 * job was aborted
-                 */
-                setState(JobState.ABORTED);
-                setFinishDate();
+            p = pBuilder.start();
+            if (p == null) {
+                log("Could not execute command: " + join(commands, " "));
+                failed();
                 return;
-            } catch (IOException ex) {
-                // does this happen at all? under which conditions? log exception and
-                // treat like job was cancelled, for now..
-                Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, ex);
-                setState(JobState.ABORTED);
-                setFinishDate();
-                return;
-            } finally {
-                if (p != null) {
-                    p.destroy();
-                }
             }
 
-            if (exitCode == 0) {
+            StringLogger procOutput = new StringLogger(getProjectName() + String.valueOf(getProjectJobID()), p.getInputStream());
+            procOutput.start();
+
+            if (p.waitFor() == 0) {
                 finished();
             } else {
-                setState(JobState.FAILED);
+                failed();
             }
-            setFinishDate();
-
-        } catch (JobException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            
+            procOutput.join();
+        } catch (InterruptedException | IOException ex) {
+            /*
+             * job was aborted
+             */
+            try {
+                failed();
+                setState(JobState.ABORTED);
+                setFinishDate();
+            } catch (JobException ex1) {
+                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
+            }
+        } finally {
+            if (p != null) {
+                p.destroy();
+            }
         }
     }
 
     @Override
     public void failed() {
+        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "Job failed, removing partial results");
         try (Connection conn = getProjectConnection()) {
             conn.setAutoCommit(false);
 
@@ -301,7 +278,7 @@ public class MGXJob extends JobI {
             conn.commit();
             conn.setAutoCommit(true);
             conn.close();
-        } catch (Exception ex) {
+        } catch (SQLException | MGXDispatcherException ex) {
             throw new JobException(ex);
         }
 
@@ -449,11 +426,8 @@ public class MGXJob extends JobI {
                     if (rs.next()) {
                         dbFile = rs.getString(1);
                     }
-                    rs.close();
                 }
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             throw new JobException(ex.getMessage());
         }
@@ -483,40 +457,42 @@ public class MGXJob extends JobI {
         }
 
         // build up command string
-        List<String> commands = new ArrayList<>(4);
-        commands.add(conveyorValidate);
-        commands.add(conveyorGraph);
-        commands.add(getProjectName());
-        commands.add(String.valueOf(getProjectJobID()));
+        String[] commands = new String[4];
+        commands[0] = conveyorValidate;
+        commands[1] = conveyorGraph;
+        commands[2] = getProjectName();
+        commands[3] = String.valueOf(getProjectJobID());
 
         ProcessBuilder pBuilder = new ProcessBuilder(commands);
         pBuilder.redirectErrorStream(true);
 
-        Integer exitCode = null;
         Process p = null;
-        StreamLogger procOutput = null;
 
         try {
-            busy = true;
             p = pBuilder.start();
             if (p == null) {
                 log("Could not execute command: " + join(commands, " "));
+                setState(JobState.FAILED);
                 return false;
             }
 
-            procOutput = new StreamLogger(p.getInputStream());
-            executor.execute(procOutput);
+            StringLogger procOutput = new StringLogger(getProjectName() + String.valueOf(getProjectJobID()), p.getInputStream());
+            procOutput.start();
 
-            while (exitCode == null) {
-                try {
-                    exitCode = p.waitFor();
-                } catch (InterruptedException ex) {
-                }
+            if (p.waitFor() == 0) {
+                procOutput.join();
+                return true;
+            } else {
+                log("Validation failed, commmand was " + join(commands, " "));
+                procOutput.join();
+                String output = procOutput.getOutput();
+                throw new JobException(output != null ? output : "No output available.");
             }
-        } catch (IOException ex) {
+        } catch (IOException | InterruptedException ex) {
             log(ex.getMessage());
+            failed();
+            return false;
         } finally {
-            busy = false;
             if (p != null) {
                 try {
                     p.getInputStream().close();
@@ -525,14 +501,6 @@ public class MGXJob extends JobI {
                 }
                 p.destroy();
             }
-        }
-
-        if (exitCode != null && exitCode == 0) {
-            return true;
-        } else {
-            log("Validation failed with exit code " + exitCode + ", commmand was " + join(commands, " "));
-            String output = procOutput != null ? procOutput.getOutput() : "";
-            throw new JobException(output.length() > 0 ? output : "No validation output received.");
         }
     }
 
@@ -544,58 +512,15 @@ public class MGXJob extends JobI {
         logger.log(Level.INFO, String.format(msg, args));
     }
 
-    private static String join(final Iterable< ? extends Object> pColl, String separator) {
-        Iterator< ? extends Object> oIter;
-        if (pColl == null || (!(oIter = pColl.iterator()).hasNext())) {
+    private static String join(String[] elems, String separator) {
+        if (elems == null || elems.length == 0) {
             return "";
         }
-        StringBuilder oBuilder = new StringBuilder(String.valueOf(oIter.next()));
-        while (oIter.hasNext()) {
-            oBuilder.append(separator).append(oIter.next());
+        StringBuilder sb = new StringBuilder(elems[0]);
+        for (int i = 1; i < elems.length; i++) {
+            sb.append(separator);
+            sb.append(elems[i]);
         }
-        return oBuilder.toString();
-    }
-
-    private volatile boolean busy = false;
-
-    private class StreamLogger implements Runnable {
-
-        private final InputStream is;
-        private final StringBuilder output = new StringBuilder();
-
-        StreamLogger(InputStream in) {
-            is = in;
-        }
-
-        public String getOutput() {
-            return output.toString();
-        }
-
-        @Override
-        public void run() {
-            String oldName = Thread.currentThread().getName();
-            //Logger.getLogger(getClass().getName()).log(Level.INFO, "StreamLogger running on {0}", oldName);
-            Thread.currentThread().setName("StreamLogger-" + getProjectName() + getProjectJobID());
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
-                String line;
-                while (busy || in.ready()) {
-                    if (in.ready()) {
-                        line = in.readLine();
-                        if (line != null && !line.trim().isEmpty()) {
-                            output.append(line);
-                            output.append(System.lineSeparator());
-                            Logger.getLogger(getClass().getName()).log(Level.INFO, line);
-                        }
-                    } else {
-                        Thread.yield();
-                    }
-                }
-            } catch (IOException ex) {
-                Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, ex);
-            } finally {
-                Thread.currentThread().setName(oldName);
-            }
-            //Logger.getLogger(getClass().getName()).log(Level.INFO, "StreamLogger run() complete.");
-        }
+        return sb.toString();
     }
 }
