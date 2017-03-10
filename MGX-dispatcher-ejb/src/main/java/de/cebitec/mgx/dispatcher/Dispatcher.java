@@ -57,7 +57,7 @@ public class Dispatcher {
         try {
             for (Runnable r : tp.shutdownNow()) {
                 JobI job = (JobI) r;
-                job.setState(JobState.PENDING);
+                job.setState(JobState.QUEUED);
                 queue.createJob(job);
                 cnt++;
             }
@@ -72,7 +72,7 @@ public class Dispatcher {
     public boolean createJob(JobI job) throws MGXDispatcherException {
         queue.createJob(job);
         try {
-            job.setState(JobState.PENDING);
+            job.setState(JobState.QUEUED);
         } catch (JobException ex) {
             log(ex.getMessage());
             throw new MGXDispatcherException(ex);
@@ -139,7 +139,7 @@ public class Dispatcher {
                         log(ex.getMessage());
                     }
 
-                    if (state != null && state.equals(JobState.PENDING)) {
+                    if (state != null && state.equals(JobState.QUEUED)) {
                         log("Scheduling job %s/%d", job.getProjectName(), job.getProjectJobID());
                         Future<?> f = tp.submit(job);
                         activeJobs.put(job, f);

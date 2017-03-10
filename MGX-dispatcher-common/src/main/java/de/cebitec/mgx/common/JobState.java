@@ -9,7 +9,7 @@ public enum JobState {
     CREATED(0),
     VERIFIED(1),
     SUBMITTED(2),
-    PENDING(3),
+    QUEUED(3),
     RUNNING(4),
     FINISHED(5),
     FAILED(6),
