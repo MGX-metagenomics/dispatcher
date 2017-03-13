@@ -32,7 +32,6 @@
         <module>MGX-dispatcher-ear</module>
         <module>MGX-dispatcher-ejb</module>
         <module>MGX-dispatcher-web</module>
-        <module>MGX-dispatcher-common</module>
         <module>MGX-dispatcher-mgx</module>
         <module>MGX-dispatcher-client</module>
     </modules>
