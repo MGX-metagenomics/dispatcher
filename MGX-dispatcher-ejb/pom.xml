@@ -23,7 +23,7 @@
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>MGX-dispatcher-common</artifactId>
+            <artifactId>MGX-dispatcher-common-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

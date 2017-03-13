@@ -15,7 +15,7 @@ import de.cebitec.mgx.dispatcher.DispatcherConfiguration;
 import de.cebitec.mgx.dispatcher.FactoryHolder;
 import de.cebitec.mgx.dispatcher.JobFactoryI;
 import de.cebitec.mgx.dispatcher.JobI;
-import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
+import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;

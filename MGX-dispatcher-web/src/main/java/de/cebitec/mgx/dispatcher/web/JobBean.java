@@ -1,7 +1,7 @@
 package de.cebitec.mgx.dispatcher.web;
 
 import de.cebitec.mgx.dispatcher.JobReceiver;
-import de.cebitec.mgx.dispatcher.common.MGXDispatcherException;
+import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import de.cebitec.mgx.dispatcher.web.exception.MGXWebException;
 import java.util.UUID;
 import javax.ejb.EJB;

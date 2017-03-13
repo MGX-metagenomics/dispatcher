@@ -2,15 +2,11 @@
 
 package de.cebitec.mgx.dispatcher.mgx;
 
-import de.cebitec.mgx.common.JobState;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *

@@ -1,6 +1,5 @@
 package de.cebitec.mgx.dispatcher;
 
-import de.cebitec.mgx.dispatcher.common.DispatcherConfigBase;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -23,10 +22,15 @@ import javax.naming.NamingException;
  */
 @Singleton
 @Startup
-public class DispatcherConfiguration extends DispatcherConfigBase {
+public class DispatcherConfiguration {
 
     protected Properties config;
     private UUID authToken;
+
+    /*
+     * location of the host file which indicates where the dispatcher instance is running
+     */
+    protected static final String dispatcherHostFile = "/vol/mgx-data/GLOBAL/mgxdispatcher.properties";
 
     @PostConstruct
     public void create() {
