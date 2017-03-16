@@ -118,13 +118,13 @@ public class MGXJob extends JobI {
             conn.setAutoCommit(false);
 
             // remove observations
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
-            // remove observations
+            // remove attributecounts
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
