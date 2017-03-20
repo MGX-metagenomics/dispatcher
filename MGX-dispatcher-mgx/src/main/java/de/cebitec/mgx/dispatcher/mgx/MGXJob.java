@@ -91,7 +91,7 @@ public class MGXJob extends JobI {
             } else {
                 failed();
             }
-            
+
             procOutput.join();
         } catch (InterruptedException | IOException ex) {
             /*
@@ -114,6 +114,7 @@ public class MGXJob extends JobI {
     @Override
     public void failed() {
         Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "Job failed, removing partial results");
+
         try (Connection conn = getProjectConnection()) {
             conn.setAutoCommit(false);
 
@@ -144,15 +145,19 @@ public class MGXJob extends JobI {
              * of time between attributetype creation and referencing the
              * attributetype in the attribute table
              */
-            // mark job failed
-            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=? WHERE id=?")) {
+            conn.commit();
+            conn.setAutoCommit(true);
+        } catch (SQLException | MGXDispatcherException ex) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        try (Connection conn = getProjectConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, JobState.FAILED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
+                stmt.close();
             }
-
-            conn.commit();
-            conn.setAutoCommit(true);
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -338,12 +343,6 @@ public class MGXJob extends JobI {
 
     @Override
     public void finished() {
-        try {
-            setState(JobState.FINISHED);
-        } catch (JobException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
-            return;
-        }
 
         try (Connection conn = getProjectConnection()) {
             // set the job to finished state
@@ -391,6 +390,17 @@ public class MGXJob extends JobI {
         File stderr = new File(sb.toString() + "stderr");
         if (stderr.exists()) {
             stderr.delete();
+        }
+
+        try (Connection conn = getProjectConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
+                stmt.setLong(1, JobState.FINISHED.ordinal());
+                stmt.setLong(2, getProjectJobID());
+                stmt.execute();
+                stmt.close();
+            }
+        } catch (SQLException | MGXDispatcherException ex) {
+            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
