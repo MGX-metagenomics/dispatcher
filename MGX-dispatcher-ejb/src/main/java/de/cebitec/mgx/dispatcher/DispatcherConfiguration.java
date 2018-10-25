@@ -65,6 +65,7 @@ public class DispatcherConfiguration {
     @PreDestroy
     public void close() {
         // remove dispatcher host file
+        System.err.println("Removing host file: "+ dispatcherHostFile);
         File f = new File(dispatcherHostFile);
         f.delete();
     }
@@ -102,6 +103,7 @@ public class DispatcherConfiguration {
         try (FileOutputStream fos = new FileOutputStream(dispatcherHostFile)) {
             p.store(fos, null);
         }
+        System.err.println("Wrote host file: "+ dispatcherHostFile);
     }
 
     /**
