@@ -1,9 +1,9 @@
 package de.cebitec.mgx.dispatcher.mgx;
 
+import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.Dispatcher;
 import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
-import de.cebitec.mgx.dispatcher.common.api.JobState;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import de.cebitec.mgx.dispatcher.mgx.MGXJobFactory.ConnectionProviderI;
 import de.cebitec.mgx.sequence.DNASequenceI;

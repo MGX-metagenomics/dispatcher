@@ -1,6 +1,6 @@
 package de.cebitec.mgx.dispatcher;
 
-import de.cebitec.mgx.dispatcher.common.api.JobState;
+import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import java.util.UUID;
 import javax.ejb.EJB;
