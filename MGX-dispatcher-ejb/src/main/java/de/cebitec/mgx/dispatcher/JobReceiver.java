@@ -3,6 +3,8 @@ package de.cebitec.mgx.dispatcher;
 import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
@@ -36,8 +38,13 @@ public class JobReceiver {
         return false;
     }
 
-    public boolean validate(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
-        JobI job = getJob(projClass, projName, projectJobId);
+    public boolean validate(String projClass, String projName, long projectJobId) {
+        JobI job = null;
+        try {
+            job = getJob(projClass, projName, projectJobId);
+        } catch (MGXDispatcherException ex) {
+            Logger.getLogger(JobReceiver.class.getName()).log(Level.SEVERE, ex.getMessage());
+        }
         if (job != null) {
             return dispatcher.validate(job);
         }

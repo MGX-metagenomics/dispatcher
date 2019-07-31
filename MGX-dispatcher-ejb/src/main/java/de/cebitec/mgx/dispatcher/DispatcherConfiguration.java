@@ -65,7 +65,7 @@ public class DispatcherConfiguration {
     @PreDestroy
     public void close() {
         // remove dispatcher host file
-        System.err.println("Removing host file: "+ dispatcherHostFile);
+        System.err.println("Removing host file: " + dispatcherHostFile);
         File f = new File(dispatcherHostFile);
         f.delete();
     }
@@ -91,6 +91,10 @@ public class DispatcherConfiguration {
         return config.getProperty("mgx_conveyor_graphvalidate");
     }
 
+    public String getCWLExecutable() {
+        return config.getProperty("mgx_cwltool");
+    }
+
     public UUID getAuthToken() {
         return authToken;
     }
@@ -103,7 +107,7 @@ public class DispatcherConfiguration {
         try (FileOutputStream fos = new FileOutputStream(dispatcherHostFile)) {
             p.store(fos, null);
         }
-        System.err.println("Wrote host file: "+ dispatcherHostFile);
+        System.err.println("Wrote host file: " + dispatcherHostFile);
     }
 
     /**

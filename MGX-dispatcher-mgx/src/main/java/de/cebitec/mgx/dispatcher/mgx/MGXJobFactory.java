@@ -19,6 +19,8 @@ import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -38,10 +40,14 @@ import javax.ejb.Startup;
 public class MGXJobFactory implements JobFactoryI {
 
     private final static String MGX = "MGX";
+    private final static String MGX2 = "MGX-2";
     private final static String MGX_DATASOURCE_TYPE = "MGX";
+    private final static String MGX2_DATASOURCE_TYPE = "MGX-2";
     //
     private final static ProjectClassI mgxClass = new ProjectClass("MGX");
+    //private final static ProjectClassI mgx2Class = new ProjectClass("MGX-2");
     private final static RoleI mgxUser = new Role(mgxClass, "User");
+    //private final static RoleI mgx2User = new Role(mgx2Class, "User");
 
     @EJB
     Dispatcher dispatcher;
@@ -76,6 +82,7 @@ public class MGXJobFactory implements JobFactoryI {
         try {
             // register self
             holder.registerFactory(MGX, this);
+            holder.registerFactory(MGX2, this);
         } catch (MGXDispatcherException ex) {
             Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -84,21 +91,46 @@ public class MGXJobFactory implements JobFactoryI {
     @PreDestroy
     public void shutdown() {
         holder.unregisterFactory(MGX);
+        holder.unregisterFactory(MGX2);
     }
+
+    private final static String GETWORKFLOW = "select t.file from job j left join tool t on (j.tool_id=t.id) where j.id=?";
 
     @Override
     public JobI createJob(String projName, long jobId) throws MGXDispatcherException {
-        return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
-                getMGXPersistentDir(), cp, projName, jobId);
+        String workflowFile = null;
+        try (Connection conn = cp.getProjectConnection(projName)) {
+            try (PreparedStatement stmt = conn.prepareStatement(GETWORKFLOW)) {
+                stmt.setLong(1, jobId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new MGXDispatcherException("Unable to access tool data.");
+                    }
+                    workflowFile = rs.getString(1);
+                }
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+            throw new MGXDispatcherException(ex);
+        }
+        if (workflowFile.endsWith(".xml")) {
+            return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
+                    getMGXPersistentDir(), cp, projName, jobId);
+        } else if (workflowFile.endsWith(".cwl")) {
+            return new MGXCWLJob(dispatcher, config.getCWLExecutable(), workflowFile, 
+                    getMGXPersistentDir(), cp, projName, jobId);
+        } else {
+            throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");
+        }
     }
+    //    private String getMGXUser() {
+    //        return props.getProperty("mgx_user");
+    //    }
+    //
+    //    private String getMGXPassword() {
+    //        return props.getProperty("mgx_password");
+    //    }
 
-//    private String getMGXUser() {
-//        return props.getProperty("mgx_user");
-//    }
-//
-//    private String getMGXPassword() {
-//        return props.getProperty("mgx_password");
-//    }
     private String getMGXPersistentDir() {
         return props.getProperty("mgx_persistent_dir");
     }
@@ -118,7 +150,7 @@ public class MGXJobFactory implements JobFactoryI {
                 DataSource_DBI targetDS = null;
                 ProjectI project = loader.getProject(projName);
                 for (DataSourceI ds : project.getDataSources()) {
-                    if (MGX_DATASOURCE_TYPE.equals(ds.getType().getName())) {
+                    if (MGX_DATASOURCE_TYPE.equals(ds.getType().getName()) || MGX2_DATASOURCE_TYPE.equals(ds.getType().getName())) {
                         if (ds instanceof DataSource_DBI) {
                             targetDS = (DataSource_DBI) ds;
                             break;
