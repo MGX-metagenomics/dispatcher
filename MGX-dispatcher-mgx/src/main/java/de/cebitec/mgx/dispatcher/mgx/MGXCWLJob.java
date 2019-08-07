@@ -5,7 +5,6 @@ import de.cebitec.mgx.dispatcher.Dispatcher;
 import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
-import de.cebitec.mgx.dispatcher.mgx.MGXJobFactory.ConnectionProviderI;
 import de.cebitec.mgx.streamlogger.StringLogger;
 import java.io.File;
 import java.io.IOException;

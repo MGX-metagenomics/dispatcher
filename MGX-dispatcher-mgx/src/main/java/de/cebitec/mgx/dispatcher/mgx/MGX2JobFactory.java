@@ -28,9 +28,9 @@ import javax.ejb.Startup;
  */
 @Singleton
 @Startup
-public class MGXJobFactory implements JobFactoryI {
+public class MGX2JobFactory implements JobFactoryI {
 
-    private final static String MGX = "MGX";
+    private final static String MGX2 = "MGX-2";
 
     @EJB
     Dispatcher dispatcher;
@@ -42,14 +42,14 @@ public class MGXJobFactory implements JobFactoryI {
     FactoryHolder holder;
 
     private final Properties props = new Properties();
-    private final ConnectionProviderI cp = new MGXConnectionProvider(loader);
+    private final ConnectionProviderI cp = new MGX2ConnectionProvider(loader);
 
     @PostConstruct
     public void init() {
         try {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException ex) {
-            Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2JobFactory.class.getName()).log(Level.SEVERE, null, ex);
             return;
         }
 
@@ -58,24 +58,24 @@ public class MGXJobFactory implements JobFactoryI {
             props.load(cfg);
             cfg.close();
         } catch (IOException ex) {
-            Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2JobFactory.class.getName()).log(Level.SEVERE, null, ex);
             return;
         }
 
         try {
             // register self
-            holder.registerFactory(MGX, this);
+            holder.registerFactory(MGX2, this);
         } catch (MGXDispatcherException ex) {
-            Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2JobFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
     @PreDestroy
     public void shutdown() {
-        holder.unregisterFactory(MGX);
+        holder.unregisterFactory(MGX2);
     }
 
-    private final static String GETWORKFLOW = "select t.xml_file from job j left join tool t on (j.tool_id=t.id) where j.id=?";
+    private final static String GETWORKFLOW = "SELECT t.file FROM job j LEFT JOIN tool t ON (j.tool_id=t.id) where j.id=?";
 
     @Override
     public JobI createJob(String projName, long jobId) throws MGXDispatcherException {
@@ -91,11 +91,14 @@ public class MGXJobFactory implements JobFactoryI {
                 }
             }
         } catch (SQLException ex) {
-            Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2JobFactory.class.getName()).log(Level.SEVERE, null, ex);
             throw new MGXDispatcherException(ex);
         }
         if (workflowFile.endsWith(".xml")) {
             return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
+                    getMGXPersistentDir(), cp, projName, jobId);
+        } else if (workflowFile.endsWith(".cwl")) {
+            return new MGXCWLJob(dispatcher, config.getCWLExecutable(), workflowFile, 
                     getMGXPersistentDir(), cp, projName, jobId);
         } else {
             throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");
