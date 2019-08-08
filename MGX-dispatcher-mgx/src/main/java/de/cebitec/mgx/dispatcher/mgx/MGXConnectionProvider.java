@@ -25,17 +25,12 @@ import java.sql.SQLException;
  */
 public class MGXConnectionProvider implements ConnectionProviderI {
     
-    private final GPMSDataLoaderI loader;
     private final static String MGX_DATASOURCE_TYPE = "MGX";
     private final static ProjectClassI mgxClass = new ProjectClass("MGX");
     private final static RoleI mgxUser = new Role(mgxClass, "User");
 
-    public MGXConnectionProvider(GPMSDataLoaderI loader) {
-        this.loader = loader;
-    }
-
     @Override
-    public Connection getProjectConnection(String projName) throws MGXDispatcherException {
+    public Connection getProjectConnection(GPMSDataLoaderI loader, String projName) throws MGXDispatcherException {
         Connection c = null;
         try {
             DataSource_DBI targetDS = null;

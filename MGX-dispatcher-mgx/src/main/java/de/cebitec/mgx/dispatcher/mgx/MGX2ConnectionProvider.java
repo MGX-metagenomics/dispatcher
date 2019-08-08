@@ -28,14 +28,9 @@ public class MGX2ConnectionProvider implements ConnectionProviderI {
     private final static String MGX2_DATASOURCE_TYPE = "MGX-2";
     private final static ProjectClassI mgx2Class = new ProjectClass("MGX-2");
     private final static RoleI mgx2User = new Role(mgx2Class, "User");
-    private final GPMSDataLoaderI loader;
-
-    public MGX2ConnectionProvider(GPMSDataLoaderI loader) {
-        this.loader = loader;
-    }
 
     @Override
-    public Connection getProjectConnection(String projName) throws MGXDispatcherException {
+    public Connection getProjectConnection(GPMSDataLoaderI loader, String projName) throws MGXDispatcherException {
         Connection c = null;
         try {
             DataSource_DBI targetDS = null;

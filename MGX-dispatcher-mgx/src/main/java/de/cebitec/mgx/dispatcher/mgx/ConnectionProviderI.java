@@ -5,6 +5,7 @@
  */
 package de.cebitec.mgx.dispatcher.mgx;
 
+import de.cebitec.gpms.util.GPMSDataLoaderI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import java.sql.Connection;
 
@@ -14,6 +15,6 @@ import java.sql.Connection;
  */
 public interface ConnectionProviderI {
 
-    Connection getProjectConnection(String projName) throws MGXDispatcherException;
+    Connection getProjectConnection(GPMSDataLoaderI loader, String projName) throws MGXDispatcherException;
     
 }

@@ -42,7 +42,7 @@ public class MGX2JobFactory implements JobFactoryI {
     FactoryHolder holder;
 
     private final Properties props = new Properties();
-    private final ConnectionProviderI cp = new MGX2ConnectionProvider(loader);
+    private final ConnectionProviderI cp = new MGX2ConnectionProvider();
 
     @PostConstruct
     public void init() {
@@ -80,7 +80,7 @@ public class MGX2JobFactory implements JobFactoryI {
     @Override
     public JobI createJob(String projName, long jobId) throws MGXDispatcherException {
         String workflowFile = null;
-        try (Connection conn = cp.getProjectConnection(projName)) {
+        try (Connection conn = cp.getProjectConnection(loader, projName)) {
             try (PreparedStatement stmt = conn.prepareStatement(GETWORKFLOW)) {
                 stmt.setLong(1, jobId);
                 try (ResultSet rs = stmt.executeQuery()) {
@@ -96,10 +96,10 @@ public class MGX2JobFactory implements JobFactoryI {
         }
         if (workflowFile.endsWith(".xml")) {
             return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
-                    getMGXPersistentDir(), cp, projName, jobId);
+                    getMGXPersistentDir(), cp, loader, projName, jobId);
         } else if (workflowFile.endsWith(".cwl")) {
             return new MGXCWLJob(dispatcher, config.getCWLExecutable(), workflowFile, 
-                    getMGXPersistentDir(), cp, projName, jobId);
+                    getMGXPersistentDir(), cp, loader, projName, jobId);
         } else {
             throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");
         }

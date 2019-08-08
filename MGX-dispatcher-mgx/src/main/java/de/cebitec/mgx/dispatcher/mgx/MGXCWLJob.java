@@ -1,5 +1,6 @@
 package de.cebitec.mgx.dispatcher.mgx;
 
+import de.cebitec.gpms.util.GPMSDataLoaderI;
 import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.Dispatcher;
 import de.cebitec.mgx.dispatcher.JobException;
@@ -23,13 +24,14 @@ public class MGXCWLJob extends JobI {
     private final String workflow;
     private final String persistentDir;
     private final ConnectionProviderI cc;
+    private final GPMSDataLoaderI loader;
     private final static Logger logger = Logger.getLogger(MGXCWLJob.class.getPackage().getName());
 
     public MGXCWLJob(Dispatcher disp,
             String cwlTool,
             String workflow,
             String persistentDir,
-            ConnectionProviderI cc, String projName,
+            ConnectionProviderI cc, GPMSDataLoaderI loader, String projName,
             long mgxJobId) throws MGXDispatcherException {
 
         super(disp, mgxJobId, projName, JobI.DEFAULT_PRIORITY);
@@ -37,6 +39,7 @@ public class MGXCWLJob extends JobI {
         this.workflow = workflow;
         this.persistentDir = persistentDir;
         this.cc = cc;
+        this.loader = loader;
     }
 
     @Override
@@ -293,7 +296,7 @@ public class MGXCWLJob extends JobI {
     }
 
     private Connection getProjectConnection() throws MGXDispatcherException {
-        return cc.getProjectConnection(getProjectName());
+        return cc.getProjectConnection(loader, getProjectName());
     }
 
     protected void close(Statement s, ResultSet r) {

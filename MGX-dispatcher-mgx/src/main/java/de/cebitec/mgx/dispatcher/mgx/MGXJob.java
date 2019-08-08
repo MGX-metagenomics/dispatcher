@@ -1,5 +1,6 @@
 package de.cebitec.mgx.dispatcher.mgx;
 
+import de.cebitec.gpms.util.GPMSDataLoaderI;
 import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.Dispatcher;
 import de.cebitec.mgx.dispatcher.JobException;
@@ -28,12 +29,13 @@ public class MGXJob extends JobI {
     private final String conveyorValidate;
     private final String conveyorExecutable;
     private final ConnectionProviderI cc;
+    private final GPMSDataLoaderI loader;
     private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
 
     public MGXJob(Dispatcher disp,
             String conveyorExec, String conveyorValidate,
             String persistentDir,
-            ConnectionProviderI cc, String projName,
+            ConnectionProviderI cc, GPMSDataLoaderI loader, String projName,
             long mgxJobId) throws MGXDispatcherException {
 
         super(disp, mgxJobId, projName, JobI.DEFAULT_PRIORITY);
@@ -41,6 +43,7 @@ public class MGXJob extends JobI {
         this.conveyorExecutable = conveyorExec;
         this.persistentDir = persistentDir;
         this.cc = cc;
+        this.loader = loader;
         conveyorGraph = lookupGraphFile(mgxJobId);
     }
 
@@ -404,7 +407,7 @@ public class MGXJob extends JobI {
     }
 
     private Connection getProjectConnection() throws MGXDispatcherException {
-        return cc.getProjectConnection(getProjectName());
+        return cc.getProjectConnection(loader, getProjectName());
     }
 
     protected void close(Statement s, ResultSet r) {
