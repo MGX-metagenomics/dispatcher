@@ -44,7 +44,7 @@ public class MGXConnectionProvider implements ConnectionProviderI {
                 }
             }
             if (targetDS == null) {
-                throw new MGXDispatcherException("Could not find project datasource for project " + projName);
+                throw new MGXDispatcherException("Could not find project datasource for MGX project " + projName);
             }
             String[] dbAuth = loader.getDatabaseCredentials(mgxUser);
             c = DataSourceFactory.createConnection(targetDS, dbAuth[0], dbAuth[1]);
