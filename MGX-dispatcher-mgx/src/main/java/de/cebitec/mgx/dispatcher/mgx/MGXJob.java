@@ -115,7 +115,8 @@ public class MGXJob extends JobI {
 
     @Override
     public void failed() {
-        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "Job failed, removing partial results");
+        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "Job {0} in project {1} failed, removing partial results",
+                new Object[]{getProjectJobID(), getProjectName()});
 
         try (Connection conn = getProjectConnection()) {
             conn.setAutoCommit(false);
@@ -345,6 +346,8 @@ public class MGXJob extends JobI {
 
     @Override
     public void finished() {
+        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "Job {0} in project {1} finished successfully.",
+                new Object[]{getProjectJobID(), getProjectName()});
 
         try (Connection conn = getProjectConnection()) {
             // set the job to finished state
