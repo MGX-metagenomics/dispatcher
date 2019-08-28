@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  *
  * @author sjaenick
  */
-public class MGXJob extends JobI {
+public class MGX2ConveyorJob extends JobI {
 
     // project-specific job id
     private final String conveyorGraph;
@@ -30,9 +30,9 @@ public class MGXJob extends JobI {
     private final String conveyorExecutable;
     private final ConnectionProviderI cc;
     private final GPMSDataLoaderI loader;
-    private final static Logger logger = Logger.getLogger(MGXJob.class.getPackage().getName());
+    private final static Logger logger = Logger.getLogger(MGX2ConveyorJob.class.getPackage().getName());
 
-    public MGXJob(Dispatcher disp,
+    public MGX2ConveyorJob(Dispatcher disp,
             String conveyorExec, String conveyorValidate,
             String persistentDir,
             ConnectionProviderI cc, GPMSDataLoaderI loader, String projName,
@@ -65,12 +65,12 @@ public class MGXJob extends JobI {
             setState(JobState.RUNNING);
             setStartDate();
         } catch (JobException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             failed();
             return;
         }
 
-        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", join(commands, " "));
+        Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", join(commands, " "));
 
         Process p = null;
 
@@ -104,7 +104,7 @@ public class MGXJob extends JobI {
                 setState(JobState.ABORTED);
                 setFinishDate();
             } catch (JobException ex1) {
-                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
+                Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex1);
             }
         } finally {
             if (p != null) {
@@ -115,7 +115,7 @@ public class MGXJob extends JobI {
 
     @Override
     public void failed() {
-        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "Job {0} in project {1} failed, removing partial results",
+        Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "Job {0} in project {1} failed, removing partial results",
                 new Object[]{getProjectJobID(), getProjectName()});
 
         try (Connection conn = getProjectConnection()) {
@@ -151,7 +151,7 @@ public class MGXJob extends JobI {
             conn.commit();
             conn.setAutoCommit(true);
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
 
         try (Connection conn = getProjectConnection()) {
@@ -162,7 +162,7 @@ public class MGXJob extends JobI {
                 stmt.close();
             }
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -209,7 +209,7 @@ public class MGXJob extends JobI {
             conn.setAutoCommit(true);
             conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -227,7 +227,7 @@ public class MGXJob extends JobI {
             }
             conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
         }
 
@@ -246,7 +246,7 @@ public class MGXJob extends JobI {
             }
             conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
         }
         if (numRows != 1) {
@@ -292,7 +292,7 @@ public class MGXJob extends JobI {
 
         JobState dbState = getState();
         if (dbState != state) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "DB inconsistent, expected {0}, got {1}", new Object[]{state, dbState});
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "DB inconsistent, expected {0}, got {1}", new Object[]{state, dbState});
             throw new JobException("DB inconsistent, expected " + state + ", got " + dbState);
         }
     }
@@ -315,7 +315,7 @@ public class MGXJob extends JobI {
             }
             conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex);
         }
         return JobState.values()[state];
@@ -323,7 +323,7 @@ public class MGXJob extends JobI {
 
     private String lookupGraphFile(long jobId) throws MGXDispatcherException {
         String file = null;
-        String sql = "SELECT Tool.xml_file FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
+        String sql = "SELECT Tool.file FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
 
         try (Connection conn = getProjectConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -338,7 +338,7 @@ public class MGXJob extends JobI {
             }
             conn.close();
         } catch (SQLException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
 
         return file;
@@ -346,7 +346,7 @@ public class MGXJob extends JobI {
 
     @Override
     public void finished() {
-        Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "Job {0} in project {1} finished successfully.",
+        Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "Job {0} in project {1} finished successfully.",
                 new Object[]{getProjectJobID(), getProjectName()});
 
         try (Connection conn = getProjectConnection()) {
@@ -367,11 +367,11 @@ public class MGXJob extends JobI {
             conn.setAutoCommit(true);
             conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             try {
                 setState(JobState.FAILED);
             } catch (JobException ex1) {
-                Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex1);
+                Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex1);
             }
         }
 
@@ -405,7 +405,7 @@ public class MGXJob extends JobI {
                 stmt.close();
             }
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -422,31 +422,45 @@ public class MGXJob extends JobI {
                 s.close();
             }
         } catch (SQLException ex) {
-            Logger.getLogger(MGXJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
     @Override
     public String getProjectClass() {
-        return "MGX";
+        return "MGX-2";
     }
 
     private String getDBFile() throws JobException {
-        String sql = "SELECT seqrun.dbfile FROM job LEFT JOIN seqrun ON (job.seqrun_id=seqrun.id) WHERE job.id=?";
-        String dbFile = null;
+        
+        String sql = "SELECT seqruns FROM job WHERE job.id=?";
+        Long[] values = null;
         try (Connection conn = getProjectConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, getProjectJobID());
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
-                        dbFile = rs.getString(1);
+                        values = (Long[]) rs.getArray(1).getArray();
                     }
                 }
             }
         } catch (SQLException | MGXDispatcherException ex) {
             throw new JobException(ex.getMessage());
         }
-        return dbFile;
+        
+        if (values == null || values.length != 1) {
+            throw new JobException("Cannot process multiple seqruns.");
+        }
+        
+        StringBuilder sb = new StringBuilder()
+                .append(persistentDir)
+                .append(File.separator)
+                .append(getProjectName())
+                .append(File.separator)
+                .append("seqruns")
+                .append(File.separator)
+                .append(String.valueOf(values[0]));
+        return sb.toString();
     }
 
     @Override

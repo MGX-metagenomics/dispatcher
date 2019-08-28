@@ -95,7 +95,7 @@ public class MGXJobFactory implements JobFactoryI {
             throw new MGXDispatcherException(ex);
         }
         if (workflowFile.endsWith(".xml")) {
-            return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
+            return new MGX1ConveyorJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
                     getMGXPersistentDir(), cp, loader, projName, jobId);
         } else {
             throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");

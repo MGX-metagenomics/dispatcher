@@ -95,7 +95,7 @@ public class MGX2JobFactory implements JobFactoryI {
             throw new MGXDispatcherException(ex);
         }
         if (workflowFile.endsWith(".xml")) {
-            return new MGXJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
+            return new MGX2ConveyorJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
                     getMGXPersistentDir(), cp, loader, projName, jobId);
         } else if (workflowFile.endsWith(".cwl")) {
             return new MGXCWLJob(dispatcher, config.getCWLExecutable(), workflowFile, 
