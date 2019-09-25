@@ -2,6 +2,7 @@ package de.cebitec.mgx.dispatcher.mgx;
 
 import de.cebitec.gpms.util.GPMSDataLoaderI;
 import de.cebitec.mgx.common.JobState;
+import de.cebitec.mgx.common.ToolScope;
 import de.cebitec.mgx.dispatcher.Dispatcher;
 import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
@@ -14,6 +15,8 @@ import de.cebitec.mgx.streamlogger.StringLogger;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -128,6 +131,12 @@ public class MGX2ConveyorJob extends JobI {
                 stmt.close();
             }
 
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM gene_observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
+                stmt.setLong(1, getProjectJobID());
+                stmt.execute();
+                stmt.close();
+            }
+
             // remove attributecounts
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
@@ -173,6 +182,12 @@ public class MGX2ConveyorJob extends JobI {
 
             // remove observations
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
+                stmt.setLong(1, getProjectJobID());
+                stmt.execute();
+                stmt.close();
+            }
+
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM gene_observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
@@ -344,23 +359,82 @@ public class MGX2ConveyorJob extends JobI {
         return file;
     }
 
+    private ToolScope getToolScope(long jobId) throws MGXDispatcherException {
+        ToolScope scope = null;
+        String sql = "SELECT Tool.scope FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
+
+        try (Connection conn = getProjectConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, jobId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        scope = ToolScope.values()[rs.getInt(1)];
+                    }
+                    rs.close();
+                }
+                stmt.close();
+            }
+            conn.close();
+        } catch (SQLException ex) {
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return scope;
+    }
+
     @Override
     public void finished() {
         Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "Job {0} in project {1} finished successfully.",
                 new Object[]{getProjectJobID(), getProjectName()});
 
+        ToolScope scope;
+        try {
+            scope = getToolScope(getProjectJobID());
+        } catch (MGXDispatcherException ex) {
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
+            return;
+        }
+
         try (Connection conn = getProjectConnection()) {
             // set the job to finished state
             conn.setAutoCommit(false);
-            // create assignment counts for attributes belonging to this job
-            String sql = "INSERT INTO attributecount "
-                    + "SELECT attribute.id, count(attribute.id) FROM attribute "
-                    + "LEFT JOIN observation ON (attribute.id = observation.attr_id) "
-                    + "WHERE job_id=? GROUP BY attribute.id ORDER BY attribute.id";
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, getProjectJobID());
-                stmt.execute();
-                stmt.close();
+
+            switch (scope) {
+                case READ:
+                    // create assignment counts for attributes belonging to this job
+                    String sql = "INSERT INTO attributecount "
+                            + "SELECT attribute.id, read.seqrun_id, count(attribute.id) FROM attribute "
+                            + "LEFT JOIN observation ON (attribute.id = observation.attr_id) "
+                            + "LEFT JOIN read ON (observation.seq_id=read.id) "
+                            + "WHERE job_id=? GROUP BY attribute.id, read.seqrun_id ORDER BY attribute.id";
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        stmt.setLong(1, getProjectJobID());
+                        stmt.execute();
+                        stmt.close();
+                    }
+                    break;
+                case ASSEMBLY:
+                    // noop
+                    break;
+                case GENE_ANNOTATION:
+                    // create assignment counts for attributes belonging to this job
+                    String sql2 = "INSERT INTO attributecount "
+                            + "SELECT attribute.id, gene_coverage.run_id, sum(gene_coverage.coverage) FROM attribute "
+                            + "LEFT JOIN gene_observation ON (attribute.id = gene_observation.attr_id) "
+                            + "LEFT JOIN gene ON (gene_observation.gene_id=gene.id) "
+                            + "LEFT JOIN gene_coverage ON (gene.id=gene_coverage.gene_id) "
+                            + "WHERE job_id=? AND gene_coverage.coverage > 0 "
+                            + "GROUP BY attribute.id, gene_coverage.run_id ORDER BY attribute.id";
+                    try (PreparedStatement stmt = conn.prepareStatement(sql2)) {
+                        stmt.setLong(1, getProjectJobID());
+                        stmt.execute();
+                        stmt.close();
+                    }
+                    break;
+                default:
+                    // noop
+                    Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, "Unrecognized tool scope {0}.", scope);
+                    break;
             }
 
             conn.commit();
@@ -431,48 +505,78 @@ public class MGX2ConveyorJob extends JobI {
         return "MGX-2";
     }
 
-    private String getDBFile() throws JobException {
-        
-        String sql = "SELECT seqruns FROM job WHERE job.id=?";
-        Long[] values = null;
-        try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, getProjectJobID());
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        values = (Long[]) rs.getArray(1).getArray();
+    private List<String> getDBFiles() throws JobException {
+
+        ToolScope scope = null;
+        try {
+            scope = getToolScope(getProjectJobID());
+        } catch (MGXDispatcherException ex) {
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        List<String> ret = new ArrayList<>();
+
+        switch (scope) {
+            case READ:
+            case ASSEMBLY:
+
+                String sql = "SELECT seqruns FROM job WHERE job.id=?";
+                Long[] values = null;
+                try (Connection conn = getProjectConnection()) {
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        stmt.setLong(1, getProjectJobID());
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            if (rs.next()) {
+                                values = (Long[]) rs.getArray(1).getArray();
+                            }
+                        }
                     }
+                } catch (SQLException | MGXDispatcherException ex) {
+                    throw new JobException(ex.getMessage());
                 }
-            }
-        } catch (SQLException | MGXDispatcherException ex) {
-            throw new JobException(ex.getMessage());
+
+                if (values == null || values.length != 1) {
+                    throw new JobException("Cannot process multiple seqruns.");
+                }
+
+                for (Long runId : values) {
+
+                    StringBuilder sb = new StringBuilder()
+                            .append(persistentDir)
+                            .append(File.separator)
+                            .append(getProjectName())
+                            .append(File.separator)
+                            .append("seqruns")
+                            .append(File.separator)
+                            .append(String.valueOf(runId));
+                    ret.add(sb.toString());
+                }
         }
-        
-        if (values == null || values.length != 1) {
-            throw new JobException("Cannot process multiple seqruns.");
-        }
-        
-        StringBuilder sb = new StringBuilder()
-                .append(persistentDir)
-                .append(File.separator)
-                .append(getProjectName())
-                .append(File.separator)
-                .append("seqruns")
-                .append(File.separator)
-                .append(String.valueOf(values[0]));
-        return sb.toString();
+
+        return ret;
     }
 
     @Override
     public boolean validate() throws JobException {
 
-        // make sure sequence store can be accessed
-        try (SeqReaderI<? extends DNASequenceI> reader = SeqReaderFactory.getReader(getDBFile())) {
-            if (reader == null || !reader.hasMoreElements()) {
-                throw new JobException("Unable to access sequence store");
+        ToolScope scope = null;
+        try {
+            scope = getToolScope(getProjectJobID());
+        } catch (MGXDispatcherException ex) {
+            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        if (scope == ToolScope.READ || scope == ToolScope.ASSEMBLY) {
+            // make sure sequence store can be accessed
+            for (String runFile : getDBFiles()) {
+                try (SeqReaderI<? extends DNASequenceI> reader = SeqReaderFactory.getReader(runFile)) {
+                    if (reader == null || !reader.hasMoreElements()) {
+                        throw new JobException("Unable to access sequence store");
+                    }
+                } catch (SeqStoreException ex) {
+                    throw new JobException(ex.getMessage());
+                }
             }
-        } catch (SeqStoreException ex) {
-            throw new JobException(ex.getMessage());
         }
 
         File validate = new File(conveyorValidate);
