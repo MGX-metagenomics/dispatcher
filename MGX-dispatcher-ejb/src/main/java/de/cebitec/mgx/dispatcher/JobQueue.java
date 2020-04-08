@@ -138,7 +138,7 @@ public class JobQueue {
                 job = fact.createJob(projName, projectJobId);
                 //job.setQueueID(queueId);
             } else {
-                log("No job factory found for project class " + projClass);
+                log("No job factory found for project class " + projClass + " while attempting to access project " + projName);
             }
         }
 
