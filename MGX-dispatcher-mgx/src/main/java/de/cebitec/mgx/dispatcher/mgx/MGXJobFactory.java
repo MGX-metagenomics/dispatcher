@@ -85,7 +85,8 @@ public class MGXJobFactory implements JobFactoryI {
                 stmt.setLong(1, jobId);
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (!rs.next()) {
-                        throw new MGXDispatcherException("Unable to access tool data for job " + jobId + " in project " + projName + ".");
+                        Logger.getLogger(MGXJobFactory.class.getName()).log(Level.SEVERE, "Unable to obtain job data for job {0} in project {1}.", new Object[]{jobId, projName});
+                        return null;
                     }
                     workflowFile = rs.getString(1);
                 }
@@ -101,13 +102,6 @@ public class MGXJobFactory implements JobFactoryI {
             throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");
         }
     }
-    //    private String getMGXUser() {
-    //        return props.getProperty("mgx_user");
-    //    }
-    //
-    //    private String getMGXPassword() {
-    //        return props.getProperty("mgx_password");
-    //    }
 
     private String getMGXPersistentDir() {
         return props.getProperty("mgx_persistent_dir");

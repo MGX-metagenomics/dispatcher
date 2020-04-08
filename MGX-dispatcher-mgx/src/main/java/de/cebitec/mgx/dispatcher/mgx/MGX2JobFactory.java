@@ -85,7 +85,8 @@ public class MGX2JobFactory implements JobFactoryI {
                 stmt.setLong(1, jobId);
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (!rs.next()) {
-                        throw new MGXDispatcherException("Unable to access tool data.");
+                        Logger.getLogger(MGX2JobFactory.class.getName()).log(Level.SEVERE, "Unable to obtain job data for job {0} in project {1}.", new Object[]{jobId, projName});
+                        return null;
                     }
                     workflowFile = rs.getString(1);
                 }
