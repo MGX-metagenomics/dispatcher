@@ -18,7 +18,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.10.1</version>
                 <configuration>
                     <compilerArgument>-Xlint:all</compilerArgument>
                     <source>1.8</source>
@@ -38,19 +38,5 @@
     <properties>
         <eeapi.version>6.0</eeapi.version>
     </properties>
-
-
-    <distributionManagement>
-        <repository>
-            <id>artifactory</id>
-            <name>local-libs-release</name>
-            <url>http://${artifactory.host}/artifactory/libs-release-local</url>
-        </repository>
-        <snapshotRepository>
-            <id>artifactory</id>
-            <name>local-libs-snapshot</name>
-            <url>http://${artifactory.host}/artifactory/libs-snapshot-local</url>
-        </snapshotRepository>
-    </distributionManagement>
 
 </project>
