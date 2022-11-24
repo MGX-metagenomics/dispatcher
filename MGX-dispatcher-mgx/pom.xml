@@ -35,7 +35,7 @@
         <dependency>
             <artifactId>postgresql</artifactId>
             <groupId>org.postgresql</groupId>
-            <version>42.5.0</version>
+            <version>42.5.1</version>
         </dependency>
         <dependency>
             <groupId>de.cebitec.gpms</groupId>
