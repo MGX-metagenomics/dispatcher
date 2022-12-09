@@ -6,10 +6,10 @@ import de.cebitec.mgx.dispatcher.Dispatcher;
 import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
+import de.cebitec.mgx.seqcompression.SequenceException;
 import de.cebitec.mgx.sequence.DNASequenceI;
 import de.cebitec.mgx.sequence.SeqReaderFactory;
 import de.cebitec.mgx.sequence.SeqReaderI;
-import de.cebitec.mgx.sequence.SeqStoreException;
 import de.cebitec.mgx.streamlogger.StringLogger;
 import java.io.File;
 import java.io.IOException;
@@ -457,7 +457,7 @@ public class MGX1ConveyorJob extends JobI {
             if (reader == null || !reader.hasMoreElements()) {
                 throw new JobException("Unable to access sequence store");
             }
-        } catch (SeqStoreException ex) {
+        } catch (SequenceException ex) {
             throw new JobException(ex.getMessage());
         }
 
