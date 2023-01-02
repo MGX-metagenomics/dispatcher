@@ -6,6 +6,7 @@ import de.cebitec.mgx.dispatcher.Dispatcher;
 import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
+import de.cebitec.mgx.dispatcher.mgx.util.StringUtil;
 import de.cebitec.mgx.streamlogger.StringLogger;
 import java.io.File;
 import java.io.IOException;
@@ -65,7 +66,7 @@ public class MGXCWLJob extends JobI {
             return;
         }
 
-        Logger.getLogger(MGXCWLJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", join(commands, " "));
+        Logger.getLogger(MGXCWLJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", StringUtil.join(commands, " "));
 
         Process p = null;
 
@@ -75,7 +76,7 @@ public class MGXCWLJob extends JobI {
 
             p = pBuilder.start();
             if (p == null) {
-                log("Could not execute command: " + join(commands, " "));
+                log("Could not execute command: " + StringUtil.join(commands, " "));
                 failed();
                 return;
             }
@@ -368,17 +369,5 @@ public class MGXCWLJob extends JobI {
 
     public void log(String msg, Object... args) {
         logger.log(Level.INFO, String.format(msg, args));
-    }
-
-    private static String join(String[] elems, String separator) {
-        if (elems == null || elems.length == 0) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder(elems[0]);
-        for (int i = 1; i < elems.length; i++) {
-            sb.append(separator);
-            sb.append(elems[i]);
-        }
-        return sb.toString();
     }
 }

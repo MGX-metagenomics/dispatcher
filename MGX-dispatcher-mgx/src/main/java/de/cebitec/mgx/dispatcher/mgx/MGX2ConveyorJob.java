@@ -7,6 +7,7 @@ import de.cebitec.mgx.dispatcher.Dispatcher;
 import de.cebitec.mgx.dispatcher.JobException;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
+import de.cebitec.mgx.dispatcher.mgx.util.StringUtil;
 import de.cebitec.mgx.seqcompression.SequenceException;
 import de.cebitec.mgx.sequence.DNASequenceI;
 import de.cebitec.mgx.sequence.SeqReaderFactory;
@@ -73,7 +74,7 @@ public class MGX2ConveyorJob extends JobI {
             return;
         }
 
-        Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", join(commands, " "));
+        Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", StringUtil.join(commands, " "));
 
         Process p = null;
 
@@ -83,7 +84,7 @@ public class MGX2ConveyorJob extends JobI {
 
             p = pBuilder.start();
             if (p == null) {
-                log("Could not execute command: " + join(commands, " "));
+                log("Could not execute command: " + StringUtil.join(commands, " "));
                 failed();
                 return;
             }
@@ -121,31 +122,31 @@ public class MGX2ConveyorJob extends JobI {
         Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "Job {0} in project {1} failed, removing partial results",
                 new Object[]{getProjectJobID(), getProjectName()});
 
-        try (Connection conn = getProjectConnection()) {
+        try ( Connection conn = getProjectConnection()) {
             conn.setAutoCommit(false);
 
             // remove observations
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM gene_observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM gene_observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
             // remove attributecounts
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
             // remove attributes
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
@@ -163,8 +164,8 @@ public class MGX2ConveyorJob extends JobI {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
+        try ( Connection conn = getProjectConnection()) {
+            try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, JobState.FAILED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
@@ -177,31 +178,31 @@ public class MGX2ConveyorJob extends JobI {
 
     @Override
     public void delete() {
-        try (Connection conn = getProjectConnection()) {
+        try ( Connection conn = getProjectConnection()) {
             conn.setAutoCommit(false);
 
             // remove observations
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM gene_observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM gene_observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
             // remove attribute counts
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
             // remove attributes
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
@@ -214,7 +215,7 @@ public class MGX2ConveyorJob extends JobI {
              * attributetype in the attribute table
              */
             // delete the job
-            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM job WHERE id=?")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM job WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
@@ -228,14 +229,10 @@ public class MGX2ConveyorJob extends JobI {
         }
     }
 
-//    @Override
-//    public String getConveyorGraph() {
-//        return conveyorGraph;
-//    }
     private void setStartDate() throws JobException {
         int numRows = 0;
-        try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?")) {
+        try ( Connection conn = getProjectConnection()) {
+            try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 numRows = stmt.executeUpdate();
                 stmt.close();
@@ -253,8 +250,8 @@ public class MGX2ConveyorJob extends JobI {
 
     private void setFinishDate() throws JobException {
         int numRows = 0;
-        try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?")) {
+        try ( Connection conn = getProjectConnection()) {
+            try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 numRows = stmt.executeUpdate();
                 stmt.close();
@@ -273,21 +270,21 @@ public class MGX2ConveyorJob extends JobI {
     public synchronized void setState(JobState state) throws JobException {
         //Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "{0}/{1}: state change {2} to {3}", new Object[]{projectName, mgxJobId, getState(), state});
         String sql = "UPDATE job SET job_state=? WHERE id=? RETURNING job_state";
-        try (Connection conn = getProjectConnection()) {
+        try ( Connection conn = getProjectConnection()) {
             //conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             conn.setAutoCommit(false);
 
             // acquire row lock
-            try (PreparedStatement stmt = conn.prepareStatement("SELECT job_state FROM job WHERE id=? FOR UPDATE")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("SELECT job_state FROM job WHERE id=? FOR UPDATE")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
                 stmt.close();
             }
 
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, state.ordinal());
                 stmt.setLong(2, getProjectJobID());
-                try (ResultSet rs = stmt.executeQuery()) {
+                try ( ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
                         JobState newState = JobState.values()[rs.getInt(1)];
                         if (newState != state) {
@@ -317,10 +314,10 @@ public class MGX2ConveyorJob extends JobI {
         String sql = "SELECT job_state FROM job WHERE id=?";
         int state = -1;
 
-        try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try ( Connection conn = getProjectConnection()) {
+            try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, getProjectJobID());
-                try (ResultSet rs = stmt.executeQuery()) {
+                try ( ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
                         state = rs.getInt(1);
                     }
@@ -340,10 +337,10 @@ public class MGX2ConveyorJob extends JobI {
         String file = null;
         String sql = "SELECT Tool.file FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
 
-        try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try ( Connection conn = getProjectConnection()) {
+            try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, jobId);
-                try (ResultSet rs = stmt.executeQuery()) {
+                try ( ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
                         file = rs.getString(1);
                     }
@@ -363,10 +360,10 @@ public class MGX2ConveyorJob extends JobI {
         ToolScope scope = null;
         String sql = "SELECT Tool.scope FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
 
-        try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try ( Connection conn = getProjectConnection()) {
+            try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setLong(1, jobId);
-                try (ResultSet rs = stmt.executeQuery()) {
+                try ( ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
                         scope = ToolScope.values()[rs.getInt(1)];
                     }
@@ -395,7 +392,7 @@ public class MGX2ConveyorJob extends JobI {
             return;
         }
 
-        try (Connection conn = getProjectConnection()) {
+        try ( Connection conn = getProjectConnection()) {
             // set the job to finished state
             conn.setAutoCommit(false);
 
@@ -407,7 +404,7 @@ public class MGX2ConveyorJob extends JobI {
                             + "LEFT JOIN observation ON (attribute.id = observation.attr_id) "
                             + "LEFT JOIN read ON (observation.seq_id=read.id) "
                             + "WHERE job_id=? GROUP BY attribute.id, read.seqrun_id ORDER BY attribute.id";
-                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
                         stmt.setLong(1, getProjectJobID());
                         stmt.execute();
                         stmt.close();
@@ -425,7 +422,7 @@ public class MGX2ConveyorJob extends JobI {
                             + "LEFT JOIN gene_coverage ON (gene.id=gene_coverage.gene_id) "
                             + "WHERE job_id=? AND gene_coverage.coverage > 0 "
                             + "GROUP BY attribute.id, gene_coverage.run_id ORDER BY attribute.id";
-                    try (PreparedStatement stmt = conn.prepareStatement(sql2)) {
+                    try ( PreparedStatement stmt = conn.prepareStatement(sql2)) {
                         stmt.setLong(1, getProjectJobID());
                         stmt.execute();
                         stmt.close();
@@ -471,8 +468,8 @@ public class MGX2ConveyorJob extends JobI {
             stderr.delete();
         }
 
-        try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
+        try ( Connection conn = getProjectConnection()) {
+            try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, JobState.FINISHED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
@@ -522,10 +519,10 @@ public class MGX2ConveyorJob extends JobI {
 
                 String sql = "SELECT seqruns FROM job WHERE job.id=?";
                 Long[] values = null;
-                try (Connection conn = getProjectConnection()) {
-                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                try ( Connection conn = getProjectConnection()) {
+                    try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
                         stmt.setLong(1, getProjectJobID());
-                        try (ResultSet rs = stmt.executeQuery()) {
+                        try ( ResultSet rs = stmt.executeQuery()) {
                             if (rs.next()) {
                                 values = (Long[]) rs.getArray(1).getArray();
                             }
@@ -569,7 +566,7 @@ public class MGX2ConveyorJob extends JobI {
         if (scope == ToolScope.READ || scope == ToolScope.ASSEMBLY) {
             // make sure sequence store can be accessed
             for (String runFile : getDBFiles()) {
-                try (SeqReaderI<? extends DNASequenceI> reader = SeqReaderFactory.getReader(runFile)) {
+                try ( SeqReaderI<? extends DNASequenceI> reader = SeqReaderFactory.getReader(runFile)) {
                     if (reader == null || !reader.hasMoreElements()) {
                         throw new JobException("Unable to access sequence store");
                     }
@@ -581,12 +578,12 @@ public class MGX2ConveyorJob extends JobI {
 
         File validate = new File(conveyorValidate);
         if (!validate.canRead() && validate.canExecute()) {
-            throw new JobException("Unable to access Conveyor executable.");
+            throw new JobException("Unable to access Conveyor executable " + conveyorValidate);
         }
 
         File graph = new File(conveyorGraph);
         if (!graph.canRead()) {
-            throw new JobException("Cannot read workflow file");
+            throw new JobException("Cannot read workflow file " + conveyorGraph);
         }
 
         // build up command string
@@ -604,7 +601,7 @@ public class MGX2ConveyorJob extends JobI {
         try {
             p = pBuilder.start();
             if (p == null) {
-                log("Could not execute command: " + join(commands, " "));
+                log("Could not execute command: " + StringUtil.join(commands, " "));
                 setState(JobState.FAILED);
                 return false;
             }
@@ -616,7 +613,7 @@ public class MGX2ConveyorJob extends JobI {
                 procOutput.join();
                 return true;
             } else {
-                log("Validation failed, commmand was " + join(commands, " "));
+                log("Validation failed, commmand was " + StringUtil.join(commands, " "));
                 procOutput.join();
                 String output = procOutput.getOutput();
                 throw new JobException(output != null ? output : "No output available.");
@@ -643,17 +640,5 @@ public class MGX2ConveyorJob extends JobI {
 
     public void log(String msg, Object... args) {
         logger.log(Level.INFO, String.format(msg, args));
-    }
-
-    private static String join(String[] elems, String separator) {
-        if (elems == null || elems.length == 0) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder(elems[0]);
-        for (int i = 1; i < elems.length; i++) {
-            sb.append(separator);
-            sb.append(elems[i]);
-        }
-        return sb.toString();
     }
 }

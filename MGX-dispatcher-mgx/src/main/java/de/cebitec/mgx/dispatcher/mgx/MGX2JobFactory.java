@@ -105,13 +105,6 @@ public class MGX2JobFactory implements JobFactoryI {
             throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");
         }
     }
-    //    private String getMGXUser() {
-    //        return props.getProperty("mgx_user");
-    //    }
-    //
-    //    private String getMGXPassword() {
-    //        return props.getProperty("mgx_password");
-    //    }
 
     private String getMGXPersistentDir() {
         return props.getProperty("mgx_persistent_dir");
