@@ -1,5 +1,7 @@
 package de.cebitec.mgx.dispatcher;
 
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -12,8 +14,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 import javax.naming.NamingException;
 
 /**
