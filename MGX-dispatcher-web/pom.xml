@@ -33,17 +33,21 @@
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
+        
+        <!--
         <dependency>
             <groupId>javax</groupId>
             <artifactId>javaee-web-api</artifactId>
             <version>8.0.1</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
+                -->
+        
+         <dependency>
+            <groupId>jakarta.platform</groupId>
+            <artifactId>jakarta.jakartaee-api</artifactId>
+            <version>${eeapi.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

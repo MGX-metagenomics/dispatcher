@@ -1,12 +1,13 @@
 package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 
 /**
  *
@@ -15,6 +16,9 @@ import javax.ejb.Startup;
 @Singleton
 @Startup
 public class FactoryHolder {
+
+    @EJB
+    protected Dispatcher dispatcher;
 
     private final Map<String, JobFactoryI> data = new HashMap<>();
     private final static Logger logger = Logger.getLogger(FactoryHolder.class.getPackage().getName());
@@ -41,6 +45,14 @@ public class FactoryHolder {
         } else {
             data.put(projClass, fact);
             logger.log(Level.INFO, "Registered handler for project class {0}", projClass);
+        }
+
+        //
+        // with a new factory registered, attempt to process queued jobs
+        //
+        // null check required for unit testing since EJBs don't work in junit5
+        if (dispatcher != null) {
+            dispatcher.scheduleJobs();
         }
     }
 

@@ -14,5 +14,5 @@ import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
  */
 public interface JobFactoryI {
 
-    public JobI createJob(String projName, long jobId) throws MGXDispatcherException;
+    public JobI createJob(Dispatcher dispatcher, String projName, long jobId) throws MGXDispatcherException;
 }

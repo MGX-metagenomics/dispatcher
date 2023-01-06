@@ -1,36 +1,19 @@
 package de.cebitec.mgx.dispatcher;
 
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author sjaenick
  */
+//@RunWithApplicationComposer
 public class FactoryHolderTest {
 
     public FactoryHolderTest() {
-    }
-
-    @BeforeClass
-    public static void setUpClass() {
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-    }
-
-    @Before
-    public void setUp() {
-    }
-
-    @After
-    public void tearDown() {
     }
 
     @Test
@@ -39,7 +22,8 @@ public class FactoryHolderTest {
         String projClass = "doesnotexist";
         FactoryHolder fh = new FactoryHolder();
         try {
-            fh.getFactory(projClass);
+            JobFactoryI factory = fh.getFactory(projClass);
+            assertNull(factory);
         } catch (MGXDispatcherException ex) {
             return;
         }
@@ -67,7 +51,7 @@ public class FactoryHolderTest {
         JobFactoryI fact = new JobFactoryI() {
 
             @Override
-            public JobI createJob(String projName, long jobId) {
+            public JobI createJob(Dispatcher d, String projName, long jobId) {
                 return null;
             }
         };

@@ -9,10 +9,6 @@
     
     <name>MGX-dispatcher Maven Enterprise Application</name>
     
-    <prerequisites>
-        <maven>3.0</maven>
-    </prerequisites>
-    
     <build>
         <plugins>
             <plugin>
@@ -25,8 +21,49 @@
                     <target>1.8</target>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-maven</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>3.5.0</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+    
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.6.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+            <version>5.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+            <version>5.6.0</version>
+        </dependency>
+    </dependencies>
     
     <modules>
         <module>MGX-dispatcher-ear</module>
@@ -36,7 +73,7 @@
     </modules>
   
     <properties>
-        <eeapi.version>6.0</eeapi.version>
+        <eeapi.version>9.1.0</eeapi.version>
     </properties>
 
 </project>
