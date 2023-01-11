@@ -7,6 +7,11 @@ import de.cebitec.mgx.dispatcher.FactoryHolder;
 import de.cebitec.mgx.dispatcher.JobFactoryI;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
@@ -16,11 +21,6 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.ejb.EJB;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 
 /**
  *
@@ -32,8 +32,6 @@ public class MGX2JobFactory implements JobFactoryI {
 
     private final static String MGX2 = "MGX-2";
 
-    @EJB
-    Dispatcher dispatcher;
     @EJB
     DispatcherConfiguration config;
     @EJB
@@ -78,12 +76,12 @@ public class MGX2JobFactory implements JobFactoryI {
     private final static String GETWORKFLOW = "SELECT t.file FROM job j LEFT JOIN tool t ON (j.tool_id=t.id) where j.id=?";
 
     @Override
-    public JobI createJob(String projName, long jobId) throws MGXDispatcherException {
+    public JobI createJob(Dispatcher dispatcher, String projName, long jobId) throws MGXDispatcherException {
         String workflowFile = null;
-        try (Connection conn = cp.getProjectConnection(loader, projName)) {
-            try (PreparedStatement stmt = conn.prepareStatement(GETWORKFLOW)) {
+        try ( Connection conn = cp.getProjectConnection(loader, projName)) {
+            try ( PreparedStatement stmt = conn.prepareStatement(GETWORKFLOW)) {
                 stmt.setLong(1, jobId);
-                try (ResultSet rs = stmt.executeQuery()) {
+                try ( ResultSet rs = stmt.executeQuery()) {
                     if (!rs.next()) {
                         Logger.getLogger(MGX2JobFactory.class.getName()).log(Level.SEVERE, "Unable to obtain job data for job {0} in project {1}.", new Object[]{jobId, projName});
                         return null;
@@ -99,7 +97,7 @@ public class MGX2JobFactory implements JobFactoryI {
             return new MGX2ConveyorJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
                     getMGXPersistentDir(), cp, loader, projName, jobId);
         } else if (workflowFile.endsWith(".cwl")) {
-            return new MGXCWLJob(dispatcher, config.getCWLExecutable(), workflowFile, 
+            return new MGXCWLJob(dispatcher, config.getCWLExecutable(), workflowFile,
                     getMGXPersistentDir(), cp, loader, projName, jobId);
         } else {
             throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");

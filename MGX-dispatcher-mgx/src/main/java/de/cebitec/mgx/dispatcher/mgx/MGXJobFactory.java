@@ -7,6 +7,11 @@ import de.cebitec.mgx.dispatcher.FactoryHolder;
 import de.cebitec.mgx.dispatcher.JobFactoryI;
 import de.cebitec.mgx.dispatcher.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
@@ -16,11 +21,6 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.ejb.EJB;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 
 /**
  *
@@ -32,8 +32,6 @@ public class MGXJobFactory implements JobFactoryI {
 
     private final static String MGX = "MGX";
 
-    @EJB
-    Dispatcher dispatcher;
     @EJB
     DispatcherConfiguration config;
     @EJB
@@ -78,7 +76,7 @@ public class MGXJobFactory implements JobFactoryI {
     private final static String GETWORKFLOW = "select t.xml_file from job j left join tool t on (j.tool_id=t.id) where j.id=?";
 
     @Override
-    public JobI createJob(String projName, long jobId) throws MGXDispatcherException {
+    public JobI createJob(Dispatcher dispatcher, String projName, long jobId) throws MGXDispatcherException {
         String workflowFile = null;
         try (Connection conn = cp.getProjectConnection(loader, projName)) {
             try (PreparedStatement stmt = conn.prepareStatement(GETWORKFLOW)) {
