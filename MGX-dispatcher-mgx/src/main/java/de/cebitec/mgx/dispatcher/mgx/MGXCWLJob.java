@@ -119,46 +119,39 @@ public class MGXCWLJob extends JobI {
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             // remove attributecounts
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             // remove attributes
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM contig WHERE bin_id IN (SELECT id FROM bin WHERE assembly_id IN (SELECT id FROM assembly WHERE job_id=?))")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM bin WHERE assembly_id IN (SELECT id FROM assembly WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM assembly WHERE job_id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, JobState.FAILED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
@@ -180,12 +173,10 @@ public class MGXCWLJob extends JobI {
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM job WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             conn.commit();
             conn.setAutoCommit(true);
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -201,9 +192,7 @@ public class MGXCWLJob extends JobI {
             try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 numRows = stmt.executeUpdate();
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
@@ -220,9 +209,7 @@ public class MGXCWLJob extends JobI {
             try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 numRows = stmt.executeUpdate();
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
@@ -244,7 +231,6 @@ public class MGXCWLJob extends JobI {
             try (PreparedStatement stmt = conn.prepareStatement("SELECT job_state FROM job WHERE id=? FOR UPDATE")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -257,13 +243,10 @@ public class MGXCWLJob extends JobI {
                             throw new JobException("DB update failed, expected " + state + ", got " + newState);
                         }
                     }
-                    rs.close();
                 }
-                stmt.close();
             }
             conn.commit();
             conn.setAutoCommit(true);
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             throw new JobException(ex);
         }
@@ -287,11 +270,8 @@ public class MGXCWLJob extends JobI {
                     if (rs.next()) {
                         state = rs.getInt(1);
                     }
-                    rs.close();
                 }
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex);
@@ -329,7 +309,6 @@ public class MGXCWLJob extends JobI {
                 stmt.setLong(1, JobState.FINISHED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);

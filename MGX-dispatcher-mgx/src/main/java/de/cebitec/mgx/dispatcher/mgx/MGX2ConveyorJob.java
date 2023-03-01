@@ -129,27 +129,23 @@ public class MGX2ConveyorJob extends JobI {
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM gene_observation WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             // remove attributecounts
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             // remove attributes
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             /*
@@ -169,7 +165,6 @@ public class MGX2ConveyorJob extends JobI {
                 stmt.setLong(1, JobState.FAILED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
@@ -185,27 +180,23 @@ public class MGX2ConveyorJob extends JobI {
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM gene_observation WHERE attributeid IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             // remove attribute counts
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM attributecount WHERE attr_id IN (SELECT id FROM attribute WHERE job_id=?)")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             // remove attributes
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM attribute WHERE job_id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             /*
@@ -218,12 +209,10 @@ public class MGX2ConveyorJob extends JobI {
             try ( PreparedStatement stmt = conn.prepareStatement("DELETE FROM job WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             conn.commit();
             conn.setAutoCommit(true);
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -235,9 +224,7 @@ public class MGX2ConveyorJob extends JobI {
             try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET startdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 numRows = stmt.executeUpdate();
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
@@ -254,9 +241,7 @@ public class MGX2ConveyorJob extends JobI {
             try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, getProjectJobID());
                 numRows = stmt.executeUpdate();
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
@@ -278,7 +263,6 @@ public class MGX2ConveyorJob extends JobI {
             try ( PreparedStatement stmt = conn.prepareStatement("SELECT job_state FROM job WHERE id=? FOR UPDATE")) {
                 stmt.setLong(1, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
 
             try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -291,13 +275,10 @@ public class MGX2ConveyorJob extends JobI {
                             throw new JobException("DB update failed, expected " + state + ", got " + newState);
                         }
                     }
-                    rs.close();
                 }
-                stmt.close();
             }
             conn.commit();
             conn.setAutoCommit(true);
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             throw new JobException(ex);
         }
@@ -321,11 +302,8 @@ public class MGX2ConveyorJob extends JobI {
                     if (rs.next()) {
                         state = rs.getInt(1);
                     }
-                    rs.close();
                 }
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex);
@@ -344,11 +322,8 @@ public class MGX2ConveyorJob extends JobI {
                     if (rs.next()) {
                         file = rs.getString(1);
                     }
-                    rs.close();
                 }
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -367,11 +342,8 @@ public class MGX2ConveyorJob extends JobI {
                     if (rs.next()) {
                         scope = ToolScope.values()[rs.getInt(1)];
                     }
-                    rs.close();
                 }
-                stmt.close();
             }
-            conn.close();
         } catch (SQLException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -407,7 +379,6 @@ public class MGX2ConveyorJob extends JobI {
                     try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
                         stmt.setLong(1, getProjectJobID());
                         stmt.execute();
-                        stmt.close();
                     }
                     break;
                 case ASSEMBLY:
@@ -425,7 +396,6 @@ public class MGX2ConveyorJob extends JobI {
                     try ( PreparedStatement stmt = conn.prepareStatement(sql2)) {
                         stmt.setLong(1, getProjectJobID());
                         stmt.execute();
-                        stmt.close();
                     }
                     break;
                 default:
@@ -436,7 +406,6 @@ public class MGX2ConveyorJob extends JobI {
 
             conn.commit();
             conn.setAutoCommit(true);
-            conn.close();
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             try {
@@ -473,7 +442,6 @@ public class MGX2ConveyorJob extends JobI {
                 stmt.setLong(1, JobState.FINISHED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
-                stmt.close();
             }
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
