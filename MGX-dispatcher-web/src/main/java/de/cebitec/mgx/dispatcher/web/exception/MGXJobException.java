@@ -1,11 +1,11 @@
-
 package de.cebitec.mgx.dispatcher.web.exception;
 
-import javax.ejb.ApplicationException;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.ejb.ApplicationException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import java.io.Serial;
 
 /**
  *
@@ -13,7 +13,10 @@ import javax.ws.rs.core.Response.Status;
  */
 @ApplicationException
 public class MGXJobException extends WebApplicationException {
-    
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     public MGXJobException(Throwable cause) {
         super(cause);
     }
