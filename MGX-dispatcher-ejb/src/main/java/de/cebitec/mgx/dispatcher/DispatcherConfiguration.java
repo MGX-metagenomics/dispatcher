@@ -49,6 +49,11 @@ public class DispatcherConfiguration {
         StringBuilder cfgFile = new StringBuilder(System.getProperty("user.dir"));
         cfgFile.append(File.separator);
         cfgFile.append("mgx_dispatcher.properties");
+        
+        File cfg = new File(cfgFile.toString());
+        if (!cfg.exists() || !cfg.canRead()) {
+            throw new RuntimeException("Dispatcher configuration file "+ cfgFile.toString()+" missing or unreadable.");
+        }
 
         // load dispatcher configuration
         config = new Properties();
