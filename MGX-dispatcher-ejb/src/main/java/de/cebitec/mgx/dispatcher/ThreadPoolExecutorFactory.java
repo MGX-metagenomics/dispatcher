@@ -1,5 +1,7 @@
 package de.cebitec.mgx.dispatcher;
 
+import de.cebitec.mgx.dispatcher.api.DispatcherConfigurationI;
+
 /**
  *
  * @author sjaenick
@@ -8,7 +10,7 @@ package de.cebitec.mgx.dispatcher;
  */
 public class ThreadPoolExecutorFactory {
 
-    public static ThreadPoolExecutor createPool(DispatcherConfiguration cfg) {
+    public static ThreadPoolExecutor createPool(DispatcherConfigurationI cfg) {
         ThreadPoolExecutor tp = ThreadPoolExecutor.getInstance();
         tp.setMaximumPoolSize(cfg.getMaxJobs());
         tp.setCorePoolSize(cfg.getMaxJobs());
