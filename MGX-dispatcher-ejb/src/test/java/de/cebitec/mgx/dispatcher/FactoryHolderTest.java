@@ -1,5 +1,8 @@
 package de.cebitec.mgx.dispatcher;
 
+import de.cebitec.mgx.dispatcher.api.DispatcherI;
+import de.cebitec.mgx.dispatcher.api.JobI;
+import de.cebitec.mgx.dispatcher.api.JobFactoryI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -51,7 +54,7 @@ public class FactoryHolderTest {
         JobFactoryI fact = new JobFactoryI() {
 
             @Override
-            public JobI createJob(Dispatcher d, String projName, long jobId) {
+            public JobI createJob(DispatcherI d, String projName, long jobId) {
                 return null;
             }
         };
