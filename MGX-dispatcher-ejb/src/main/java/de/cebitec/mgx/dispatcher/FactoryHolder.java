@@ -1,5 +1,8 @@
 package de.cebitec.mgx.dispatcher;
 
+import de.cebitec.mgx.dispatcher.api.DispatcherI;
+import de.cebitec.mgx.dispatcher.api.JobFactoryI;
+import de.cebitec.mgx.dispatcher.api.FactoryHolderI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Singleton;
@@ -15,14 +18,20 @@ import java.util.logging.Logger;
  */
 @Singleton
 @Startup
-public class FactoryHolder {
+public class FactoryHolder implements FactoryHolderI {
 
     @EJB
-    protected Dispatcher dispatcher;
+    protected DispatcherI dispatcher;
 
     private final Map<String, JobFactoryI> data = new HashMap<>();
     private final static Logger logger = Logger.getLogger(FactoryHolder.class.getPackage().getName());
 
+    @Override
+    public boolean available() {
+        return !data.isEmpty();
+    }
+    
+    @Override
     public JobFactoryI getFactory(String projClass) throws MGXDispatcherException {
         if (projClass == null) {
             logger.log(Level.INFO, "NULL project class received.");
@@ -30,11 +39,13 @@ public class FactoryHolder {
         }
         if (!data.containsKey(projClass)) {
             logger.log(Level.INFO, "No known handler for project class {0}", projClass);
-            throw new MGXDispatcherException("No registered job factory for project class " + projClass);
+            return null;
+            //throw new MGXDispatcherException("No registered job factory for project class " + projClass);
         }
         return data.get(projClass);
     }
 
+    @Override
     public void registerFactory(String projClass, JobFactoryI fact) throws MGXDispatcherException {
         if (projClass == null || projClass.trim().isEmpty() || fact == null) {
             throw new MGXDispatcherException("Factory registration error.");
@@ -56,6 +67,7 @@ public class FactoryHolder {
         }
     }
 
+    @Override
     public JobFactoryI unregisterFactory(String projClass) {
         if (data.containsKey(projClass)) {
             logger.log(Level.INFO, "Unregistered handler for project class {0}", projClass);
