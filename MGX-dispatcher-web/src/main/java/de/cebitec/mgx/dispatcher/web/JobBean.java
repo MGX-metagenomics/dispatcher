@@ -1,6 +1,6 @@
 package de.cebitec.mgx.dispatcher.web;
 
-import de.cebitec.mgx.dispatcher.JobReceiver;
+import de.cebitec.mgx.dispatcher.api.JobReceiverI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import de.cebitec.mgx.dispatcher.web.exception.MGXWebException;
 import jakarta.ejb.EJB;
@@ -23,7 +23,7 @@ import java.util.UUID;
 public class JobBean {
 
     @EJB
-    JobReceiver receiver;
+    JobReceiverI receiver;
 
     @GET
     @Path("validate/{projClass}/{projName}/{id}")
