@@ -12,7 +12,6 @@ import jakarta.ejb.Singleton;
 import jakarta.ejb.Startup;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
