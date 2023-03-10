@@ -125,7 +125,7 @@ public class Dispatcher implements DispatcherI {
             return;
         }
 
-        if (queue.size() == 0) {
+        if (queue.size() == 0 || tp.getActiveCount() > 0) {
             log("Queue is empty, %d jobs running.", tp.getActiveCount());
             return;
         }
