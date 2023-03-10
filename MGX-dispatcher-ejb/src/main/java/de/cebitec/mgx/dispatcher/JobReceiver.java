@@ -75,11 +75,6 @@ public class JobReceiver implements JobReceiverI {
         dispatcher.cancelJob(job);
     }
 
-    @Override
-    public boolean shutdown(UUID auth) {
-        return dispatcher.shutdown(auth);
-    }
-
     private JobI getJob(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
         return factories.createJob(dispatcher, projClass, projName, projectJobId);
     }

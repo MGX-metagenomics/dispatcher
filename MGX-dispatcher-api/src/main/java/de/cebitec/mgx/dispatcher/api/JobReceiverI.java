@@ -17,8 +17,6 @@ public interface JobReceiverI {
 
     void delete(String projClass, String projName, long projectJobId) throws MGXDispatcherException;
 
-    boolean shutdown(UUID auth);
-
     boolean submit(String projClass, String projName, long projectJobId) throws MGXDispatcherException;
 
     boolean validate(String projClass, String projName, long projectJobId);

@@ -44,22 +44,13 @@ public class Dispatcher implements DispatcherI {
         int queueSize = queue.size();
         log("%d jobs in queue, execution limited to max %d parallel jobs", queueSize, config.getMaxJobs());
         tp = ThreadPoolExecutorFactory.createPool(config);
-        
+
         // we cannot perform an initial scheduling run here because job factories
         // are not yet registered with the factory holder.
     }
 
     @PreDestroy
     public void destroy() {
-        shutdown(config.getAuthToken());
-    }
-
-    @Override
-    public boolean shutdown(UUID auth) {
-        if (!config.getAuthToken().equals(auth)) {
-            log("Invalid authentication token.");
-            return false;
-        }
         log("Stopping MGX dispatcher");
         queueMode = true;
         // save unprocessed jobs back to queue
@@ -73,10 +64,8 @@ public class Dispatcher implements DispatcherI {
             }
         } catch (MGXDispatcherException | JobException ex) {
             log(ex.getMessage());
-            return false;
         }
         log(cnt + " jobs saved to queue");
-        return true;
     }
 
     @Override
@@ -131,12 +120,12 @@ public class Dispatcher implements DispatcherI {
     @Schedule(hour = "*", minute = "*", second = "0", persistent = false)
     @Override
     public synchronized void scheduleJobs() {
-        
+
         if (queueMode) {
             log("QUEUEING MODE, %d jobs queued, %d jobs running.", queue.size(), tp.getActiveCount());
             return;
         }
-        
+
         if (queue.size() == 0) {
             log("Queue is empty, %d jobs running.", tp.getActiveCount());
             return;

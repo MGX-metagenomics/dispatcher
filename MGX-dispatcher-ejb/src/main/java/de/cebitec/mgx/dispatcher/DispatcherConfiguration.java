@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Properties;
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jakarta.annotation.PostConstruct;
@@ -26,7 +25,6 @@ import javax.naming.NamingException;
 public class DispatcherConfiguration implements DispatcherConfigurationI {
 
     protected Properties config;
-    private UUID authToken;
     private static final Logger LOG = Logger.getLogger(DispatcherConfiguration.class.getName());
 
     /*
@@ -37,8 +35,6 @@ public class DispatcherConfiguration implements DispatcherConfigurationI {
     @PostConstruct
     public void create() {
         read();
-
-        authToken = UUID.randomUUID();
         try {
             // write dispatcher host file
             writeDispatcherHostFile();
@@ -108,11 +104,6 @@ public class DispatcherConfiguration implements DispatcherConfigurationI {
         return config.getProperty("mgx_cwltool");
     }
 
-    @Override
-    public UUID getAuthToken() {
-        return authToken;
-    }
-
     private void writeDispatcherHostFile() throws UnknownHostException, IOException, NamingException {
 
         String hostName = getHostName();
@@ -122,7 +113,6 @@ public class DispatcherConfiguration implements DispatcherConfigurationI {
 
         Properties p = new Properties();
         p.put("mgx_dispatcherhost", hostName);
-        p.put("mgx_dispatchertoken", authToken.toString());
 
         File hostFile = new File(dispatcherHostFile);
         if (!hostFile.canWrite()) {

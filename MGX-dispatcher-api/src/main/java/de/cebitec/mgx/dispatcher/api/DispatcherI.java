@@ -23,8 +23,6 @@ public interface DispatcherI {
 
     void setQueueMode(boolean qMode);
 
-    boolean shutdown(UUID auth);
-
     boolean validate(JobI job);
     
     void scheduleJobs();

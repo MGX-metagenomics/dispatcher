@@ -4,15 +4,11 @@
  */
 package de.cebitec.mgx.dispatcher.api;
 
-import java.util.UUID;
-
 /**
  *
  * @author sj
  */
 public interface DispatcherConfigurationI {
-
-    UUID getAuthToken();
 
     String getCWLExecutable();
 

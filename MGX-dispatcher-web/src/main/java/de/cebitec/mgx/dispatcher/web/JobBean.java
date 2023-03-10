@@ -12,7 +12,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.util.UUID;
 
 /**
  *
@@ -63,17 +62,5 @@ public class JobBean {
             throw new MGXWebException(ex.getMessage());
         }
         return Response.ok().build();
-    }
-
-    @GET
-    @Path("shutdown/{uuid}")
-    @Produces(MediaType.TEXT_PLAIN)
-    public boolean shutdown(@PathParam("uuid") String uuid) {
-        try {
-            UUID token = UUID.fromString(uuid);
-            return receiver.shutdown(UUID.fromString(uuid));
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
     }
 }
