@@ -1,18 +1,24 @@
 package de.cebitec.mgx.dispatcher;
 
+import de.cebitec.mgx.dispatcher.api.JobException;
+import de.cebitec.mgx.dispatcher.api.DispatcherI;
+import de.cebitec.mgx.dispatcher.api.JobI;
 import de.cebitec.mgx.common.JobState;
+import de.cebitec.mgx.dispatcher.api.DispatcherConfigurationI;
+import de.cebitec.mgx.dispatcher.api.JobQueueI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.ejb.EJB;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.ejb.Schedule;
 
 /**
  *
@@ -20,12 +26,13 @@ import javax.ejb.Startup;
  */
 @Singleton(mappedName = "Dispatcher")
 @Startup
-public class Dispatcher {
+public class Dispatcher implements DispatcherI {
 
     @EJB
-    private DispatcherConfiguration config;
+    private DispatcherConfigurationI config;
     @EJB
-    private JobQueue queue;
+    private JobQueueI queue;
+
     private ThreadPoolExecutor tp = null;
     private final static Logger logger = Logger.getLogger(Dispatcher.class.getPackage().getName());
     private final Map<JobI, Future<?>> activeJobs = new HashMap<>();
@@ -37,7 +44,9 @@ public class Dispatcher {
         int queueSize = queue.size();
         log("%d jobs in queue, execution limited to max %d parallel jobs", queueSize, config.getMaxJobs());
         tp = ThreadPoolExecutorFactory.createPool(config);
-        scheduleJobs();
+        
+        // we cannot perform an initial scheduling run here because job factories
+        // are not yet registered with the factory holder.
     }
 
     @PreDestroy
@@ -45,6 +54,7 @@ public class Dispatcher {
         shutdown(config.getAuthToken());
     }
 
+    @Override
     public boolean shutdown(UUID auth) {
         if (!config.getAuthToken().equals(auth)) {
             log("Invalid authentication token.");
@@ -69,6 +79,7 @@ public class Dispatcher {
         return true;
     }
 
+    @Override
     public boolean createJob(JobI job) throws MGXDispatcherException {
         queue.createJob(job);
         try {
@@ -78,10 +89,13 @@ public class Dispatcher {
             throw new MGXDispatcherException(ex);
         }
 
+        // attempt to schedule a job from the queue
         scheduleJobs();
+
         return true;
     }
 
+    @Override
     public void cancelJob(JobI job) throws MGXDispatcherException {
         // try to remove job from queue
         boolean deleted = queue.deleteJob(job);
@@ -100,26 +114,31 @@ public class Dispatcher {
         }
     }
 
+    @Override
     public void deleteJob(JobI job) throws MGXDispatcherException {
         // job might be queued or running, so we cancel it, just in case
         cancelJob(job);
-
-//        job.setState(JobState.IN_DELETION);
-//        queue.createJob(job);
         scheduleJobs();
     }
 
+    @Override
     public void handleExitingJob(JobI job) {
         if (activeJobs.containsKey(job)) {
             activeJobs.remove(job);
         }
-        scheduleJobs();
     }
 
-    private void scheduleJobs() {
-
+    @Schedule(hour = "*", minute = "*", second = "0", persistent = false)
+    @Override
+    public synchronized void scheduleJobs() {
+        
         if (queueMode) {
             log("QUEUEING MODE, %d jobs queued, %d jobs running.", queue.size(), tp.getActiveCount());
+            return;
+        }
+        
+        if (queue.size() == 0) {
+            log("Queue is empty, %d jobs running.", tp.getActiveCount());
             return;
         }
 
@@ -131,25 +150,28 @@ public class Dispatcher {
                 } catch (MGXDispatcherException ex) {
                     Logger.getLogger(Dispatcher.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                if (job != null) {
-                    JobState state = null;
-                    try {
-                        state = job.getState();
-                    } catch (JobException ex) {
-                        log(ex.getMessage());
-                    }
 
-                    if (state != null && state.equals(JobState.QUEUED)) {
-                        log("Scheduling job %s/%d", job.getProjectName(), job.getProjectJobID());
-                        Future<?> f = tp.submit(job);
-                        activeJobs.put(job, f);
-                    } else {
-                        log("Not scheduling job %d in project %s due to unexpected state %s", job.getProjectJobID(), job.getProjectName(), state.toString());
-                        log("Override in place, scheduling (FIXME)...");
-                        // OVERRIDE - state changes are broken?!?!
-                        Future<?> f = tp.submit(job);
-                        activeJobs.put(job, f);
-                    }
+                if (job == null) {
+                    return;
+                }
+
+                JobState state = null;
+                try {
+                    state = job.getState();
+                } catch (JobException ex) {
+                    log(ex.getMessage());
+                }
+
+                if (state != null && state.equals(JobState.QUEUED)) {
+                    log("Scheduling job %s/%d", job.getProjectName(), job.getProjectJobID());
+                    Future<?> f = tp.submit(job);
+                    activeJobs.put(job, f);
+                } else {
+                    log("Not scheduling job %d in project %s due to unexpected state %s", job.getProjectJobID(), job.getProjectName(), state.toString());
+                    log("Override in place, scheduling (FIXME)...");
+                    // OVERRIDE - state changes are broken?!?!
+                    Future<?> f = tp.submit(job);
+                    activeJobs.put(job, f);
                 }
             } else {
                 log("All slots busy, not scheduling additional jobs.");
@@ -158,6 +180,7 @@ public class Dispatcher {
         }
     }
 
+    @Override
     public void setQueueMode(boolean qMode) {
         queueMode = qMode;
 
@@ -175,6 +198,7 @@ public class Dispatcher {
         logger.log(Level.INFO, String.format(msg, args));
     }
 
+    @Override
     public boolean validate(JobI job) {
         try {
             if (job.validate()) {

@@ -1,13 +1,18 @@
 package de.cebitec.mgx.dispatcher;
 
+import de.cebitec.mgx.dispatcher.api.JobReceiverI;
+import de.cebitec.mgx.dispatcher.api.JobException;
+import de.cebitec.mgx.dispatcher.api.JobI;
+import de.cebitec.mgx.dispatcher.api.FactoryHolderI;
 import de.cebitec.mgx.common.JobState;
+import de.cebitec.mgx.dispatcher.api.DispatcherI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.ejb.EJB;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 
 /**
  *
@@ -15,13 +20,14 @@ import javax.ejb.Startup;
  */
 @Singleton
 @Startup
-public class JobReceiver {
+public class JobReceiver implements JobReceiverI {
 
     @EJB
-    private Dispatcher dispatcher;
+    private DispatcherI dispatcher;
     @EJB
-    private FactoryHolder factories;
+    private FactoryHolderI factories;
 
+    @Override
     public boolean submit(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
         JobI job = getJob(projClass, projName, projectJobId);
         if (job != null) {
@@ -38,6 +44,7 @@ public class JobReceiver {
         return false;
     }
 
+    @Override
     public boolean validate(String projClass, String projName, long projectJobId) {
         JobI job = null;
         try {
@@ -51,6 +58,7 @@ public class JobReceiver {
         return false;
     }
 
+    @Override
     public void delete(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
         JobI job = getJob(projClass, projName, projectJobId);
         if (job != null) {
@@ -58,6 +66,7 @@ public class JobReceiver {
         }
     }
 
+    @Override
     public void cancel(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
         JobI job = getJob(projClass, projName, projectJobId);
         if (job == null) {
@@ -66,15 +75,12 @@ public class JobReceiver {
         dispatcher.cancelJob(job);
     }
 
+    @Override
     public boolean shutdown(UUID auth) {
         return dispatcher.shutdown(auth);
     }
 
     private JobI getJob(String projClass, String projName, long projectJobId) throws MGXDispatcherException {
-        JobFactoryI fact = factories.getFactory(projClass);
-        if (fact == null) {
-            throw new MGXDispatcherException("Unknown project class: "+ projClass);
-        }
-        return fact.createJob(projName, projectJobId);
+        return factories.createJob(dispatcher, projClass, projName, projectJobId);
     }
 }

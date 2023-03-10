@@ -3,9 +3,9 @@ package de.cebitec.mgx.dispatcher.mgx;
 import de.cebitec.gpms.util.GPMSDataLoaderI;
 import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.common.ToolScope;
-import de.cebitec.mgx.dispatcher.Dispatcher;
-import de.cebitec.mgx.dispatcher.JobException;
-import de.cebitec.mgx.dispatcher.JobI;
+import de.cebitec.mgx.dispatcher.api.DispatcherI;
+import de.cebitec.mgx.dispatcher.api.JobException;
+import de.cebitec.mgx.dispatcher.api.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import de.cebitec.mgx.dispatcher.mgx.util.StringUtil;
 import de.cebitec.mgx.seqcompression.SequenceException;
@@ -36,7 +36,7 @@ public class MGX2ConveyorJob extends JobI {
     private final GPMSDataLoaderI loader;
     private final static Logger logger = Logger.getLogger(MGX2ConveyorJob.class.getPackage().getName());
 
-    public MGX2ConveyorJob(Dispatcher disp,
+    public MGX2ConveyorJob(DispatcherI disp,
             String conveyorExec, String conveyorValidate,
             String persistentDir,
             ConnectionProviderI cc, GPMSDataLoaderI loader, String projName,

@@ -2,9 +2,9 @@ package de.cebitec.mgx.dispatcher.mgx;
 
 import de.cebitec.gpms.util.GPMSDataLoaderI;
 import de.cebitec.mgx.common.JobState;
-import de.cebitec.mgx.dispatcher.Dispatcher;
-import de.cebitec.mgx.dispatcher.JobException;
-import de.cebitec.mgx.dispatcher.JobI;
+import de.cebitec.mgx.dispatcher.api.DispatcherI;
+import de.cebitec.mgx.dispatcher.api.JobException;
+import de.cebitec.mgx.dispatcher.api.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import de.cebitec.mgx.dispatcher.mgx.util.StringUtil;
 import de.cebitec.mgx.streamlogger.StringLogger;
@@ -28,7 +28,7 @@ public class MGXCWLJob extends JobI {
     private final GPMSDataLoaderI loader;
     private final static Logger logger = Logger.getLogger(MGXCWLJob.class.getPackage().getName());
 
-    public MGXCWLJob(Dispatcher disp,
+    public MGXCWLJob(DispatcherI disp,
             String cwlTool,
             String workflow,
             String persistentDir,

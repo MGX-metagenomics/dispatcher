@@ -124,6 +124,12 @@ public class DispatcherConfiguration implements DispatcherConfigurationI {
         p.put("mgx_dispatcherhost", hostName);
         p.put("mgx_dispatchertoken", authToken.toString());
 
+        File hostFile = new File(dispatcherHostFile);
+        if (!hostFile.canWrite()) {
+            LOG.severe("No write permission to " + dispatcherHostFile);
+            throw new RuntimeException("Unable to create dispatcher host file.");
+        }
+
         try ( FileOutputStream fos = new FileOutputStream(dispatcherHostFile)) {
             p.store(fos, null);
         }

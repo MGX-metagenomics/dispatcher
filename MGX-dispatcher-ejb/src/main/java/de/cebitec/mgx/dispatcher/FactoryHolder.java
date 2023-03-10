@@ -3,12 +3,13 @@ package de.cebitec.mgx.dispatcher;
 import de.cebitec.mgx.dispatcher.api.DispatcherI;
 import de.cebitec.mgx.dispatcher.api.JobFactoryI;
 import de.cebitec.mgx.dispatcher.api.FactoryHolderI;
+import de.cebitec.mgx.dispatcher.api.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Singleton;
 import jakarta.ejb.Startup;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,16 +24,30 @@ public class FactoryHolder implements FactoryHolderI {
     @EJB
     protected DispatcherI dispatcher;
 
-    private final Map<String, JobFactoryI> data = new HashMap<>();
+    private final Map<String, JobFactoryI> data = new ConcurrentHashMap<>();
     private final static Logger logger = Logger.getLogger(FactoryHolder.class.getPackage().getName());
 
     @Override
     public boolean available() {
         return !data.isEmpty();
     }
-    
+
     @Override
-    public JobFactoryI getFactory(String projClass) throws MGXDispatcherException {
+    public boolean supported(String projClass) {
+        return data.containsKey(projClass);
+    }
+
+    @Override
+    public JobI createJob(DispatcherI dispatcher, String projClass, String projName, long projectJobId) throws MGXDispatcherException {
+        JobFactoryI jf = getFactory(projClass);
+        if (jf != null) {
+            return jf.createJob(dispatcher, projName, projectJobId);
+        }
+        logger.log(Level.INFO, "No job factory found for project class {0} while attempting to access project {1}", new Object[]{projClass, projName});
+        return null;
+    }
+
+    private JobFactoryI getFactory(String projClass) throws MGXDispatcherException {
         if (projClass == null) {
             logger.log(Level.INFO, "NULL project class received.");
             throw new MGXDispatcherException("No project class received.");
@@ -56,14 +71,6 @@ public class FactoryHolder implements FactoryHolderI {
         } else {
             data.put(projClass, fact);
             logger.log(Level.INFO, "Registered handler for project class {0}", projClass);
-        }
-
-        //
-        // with a new factory registered, attempt to process queued jobs
-        //
-        // null check required for unit testing since EJBs don't work in junit5
-        if (dispatcher != null) {
-            dispatcher.scheduleJobs();
         }
     }
 

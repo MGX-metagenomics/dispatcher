@@ -15,7 +15,6 @@ public abstract class JobI implements Runnable {
 //    public JobI(Dispatcher d) {
 //        this(d, DEFAULT_PRIORITY);
 //    }
-
     public JobI(DispatcherI d, long projJobId, String projName, int prio) {
         dispatcher = d;
         projectJobId = projJobId;
@@ -44,12 +43,15 @@ public abstract class JobI implements Runnable {
 
     public abstract void setState(JobState newState) throws JobException;
 
-    public String getProjectName() { return projectName; }
+    public String getProjectName() {
+        return projectName;
+    }
 
-    public long getProjectJobID() { return projectJobId; }
+    public long getProjectJobID() {
+        return projectJobId;
+    }
 
     //public abstract String getConveyorGraph();
-
     public abstract String getProjectClass();
 
     @Override
@@ -75,7 +77,6 @@ public abstract class JobI implements Runnable {
 //    public int getQueueID() {
 //        return queueID;
 //    }
-
     public int getPriority() {
         return priority;
     }
@@ -83,7 +84,6 @@ public abstract class JobI implements Runnable {
 //    public void setPriority(int priority) {
 //        this.priority = priority;
 //    }
-
     @Override
     public int hashCode() {
         int hash = 7;

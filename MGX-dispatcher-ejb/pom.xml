@@ -58,7 +58,11 @@
             <scope>test</scope>
         </dependency>
         -->
-
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>MGX-dispatcher-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

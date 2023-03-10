@@ -1,11 +1,11 @@
 package de.cebitec.mgx.dispatcher.mgx;
 
 import de.cebitec.gpms.util.GPMSDataLoaderI;
-import de.cebitec.mgx.dispatcher.Dispatcher;
-import de.cebitec.mgx.dispatcher.DispatcherConfiguration;
-import de.cebitec.mgx.dispatcher.FactoryHolder;
-import de.cebitec.mgx.dispatcher.JobFactoryI;
-import de.cebitec.mgx.dispatcher.JobI;
+import de.cebitec.mgx.dispatcher.api.DispatcherConfigurationI;
+import de.cebitec.mgx.dispatcher.api.DispatcherI;
+import de.cebitec.mgx.dispatcher.api.FactoryHolderI;
+import de.cebitec.mgx.dispatcher.api.JobFactoryI;
+import de.cebitec.mgx.dispatcher.api.JobI;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -33,11 +33,11 @@ public class MGX2JobFactory implements JobFactoryI {
     private final static String MGX2 = "MGX-2";
 
     @EJB
-    DispatcherConfiguration config;
+    DispatcherConfigurationI config;
     @EJB
     GPMSDataLoaderI loader;
     @EJB
-    FactoryHolder holder;
+    FactoryHolderI holder;
 
     private final Properties props = new Properties();
     private final ConnectionProviderI cp = new MGX2ConnectionProvider();
@@ -76,7 +76,7 @@ public class MGX2JobFactory implements JobFactoryI {
     private final static String GETWORKFLOW = "SELECT t.file FROM job j LEFT JOIN tool t ON (j.tool_id=t.id) where j.id=?";
 
     @Override
-    public JobI createJob(Dispatcher dispatcher, String projName, long jobId) throws MGXDispatcherException {
+    public JobI createJob(DispatcherI dispatcher, String projName, long jobId) throws MGXDispatcherException {
         String workflowFile = null;
         try ( Connection conn = cp.getProjectConnection(loader, projName)) {
             try ( PreparedStatement stmt = conn.prepareStatement(GETWORKFLOW)) {

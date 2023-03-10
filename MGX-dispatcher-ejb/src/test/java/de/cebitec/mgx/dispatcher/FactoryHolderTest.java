@@ -19,19 +19,19 @@ public class FactoryHolderTest {
     public FactoryHolderTest() {
     }
 
-    @Test
-    public void testGetFactory() {
-        System.out.println("getFactory");
-        String projClass = "doesnotexist";
-        FactoryHolder fh = new FactoryHolder();
-        try {
-            JobFactoryI factory = fh.getFactory(projClass);
-            assertNull(factory);
-        } catch (MGXDispatcherException ex) {
-            return;
-        }
-        fail();
-    }
+//    @Test
+//    public void testGetFactory() {
+//        System.out.println("getFactory");
+//        String projClass = "doesnotexist";
+//        FactoryHolder fh = new FactoryHolder();
+//        try {
+//            JobFactoryI factory = fh.getFactory(projClass);
+//            assertNull(factory);
+//        } catch (MGXDispatcherException ex) {
+//            return;
+//        }
+//        fail();
+//    }
 
     @Test
     public void testRegisterFactory() {

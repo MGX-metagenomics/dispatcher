@@ -8,10 +8,14 @@ import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
  */
 public interface FactoryHolderI {
 
-    JobFactoryI getFactory(String projClass) throws MGXDispatcherException;
-
     void registerFactory(String projClass, JobFactoryI fact) throws MGXDispatcherException;
 
     JobFactoryI unregisterFactory(String projClass);
+
+    JobI createJob(DispatcherI dispatcher, String projClass, String projName, long projectJobId) throws MGXDispatcherException;
+
+    boolean available();
     
+    boolean supported(String projClass);
+
 }
