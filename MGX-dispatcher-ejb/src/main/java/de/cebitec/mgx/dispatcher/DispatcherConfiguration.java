@@ -140,10 +140,6 @@ public class DispatcherConfiguration implements DispatcherConfigurationI {
     private static String getHostName() throws UnknownHostException, NamingException {
         String hostAddress = InetAddress.getLocalHost().getHostAddress();
 
-        if (hostAddress.startsWith("127.0.")) {
-            return "localhost";
-        }
-
         String[] bytes = hostAddress.split("\\.");
         if (bytes.length == 4) {
             final Properties env = new Properties();
