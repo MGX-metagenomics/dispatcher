@@ -115,9 +115,15 @@ public class DispatcherConfiguration implements DispatcherConfigurationI {
         p.put("mgx_dispatcherhost", hostName);
 
         File hostFile = new File(dispatcherHostFile);
-        if (!hostFile.canWrite()) {
-            LOG.severe("No write permission to " + dispatcherHostFile);
+        File hostFileDir = hostFile.getParentFile();
+        if (!hostFileDir.canWrite()) {
+            LOG.log(Level.SEVERE, "No write permission to {0}", hostFileDir.getAbsolutePath());
             throw new RuntimeException("Unable to create dispatcher host file.");
+        }
+        
+        if (hostFile.exists() && !hostFile.canWrite()) {
+            LOG.severe("No write permission to existing " + dispatcherHostFile);
+            throw new RuntimeException("Unable to overwrite dispatcher host file.");
         }
 
         try ( FileOutputStream fos = new FileOutputStream(dispatcherHostFile)) {
