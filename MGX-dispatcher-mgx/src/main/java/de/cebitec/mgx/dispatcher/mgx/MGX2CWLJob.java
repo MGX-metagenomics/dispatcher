@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  *
  * @author sjaenick
  */
-public class MGXCWLJob extends JobI {
+public class MGX2CWLJob extends JobI {
 
     // project-specific job id
     private final String cwlTool;
@@ -26,9 +26,9 @@ public class MGXCWLJob extends JobI {
     private final String persistentDir;
     private final ConnectionProviderI cc;
     private final GPMSDataLoaderI loader;
-    private final static Logger logger = Logger.getLogger(MGXCWLJob.class.getPackage().getName());
+    private final static Logger logger = Logger.getLogger(MGX2CWLJob.class.getPackage().getName());
 
-    public MGXCWLJob(DispatcherI disp,
+    public MGX2CWLJob(DispatcherI disp,
             String cwlTool,
             String workflow,
             String persistentDir,
@@ -61,12 +61,12 @@ public class MGXCWLJob extends JobI {
             setState(JobState.RUNNING);
             setStartDate();
         } catch (JobException ex) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex);
             failed();
             return;
         }
 
-        Logger.getLogger(MGXCWLJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", StringUtil.join(commands, " "));
+        Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.INFO, "EXECUTING COMMAND: {0}", StringUtil.join(commands, " "));
 
         Process p = null;
 
@@ -100,7 +100,7 @@ public class MGXCWLJob extends JobI {
                 setState(JobState.ABORTED);
                 setFinishDate();
             } catch (JobException ex1) {
-                Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex1);
+                Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex1);
             }
         } finally {
             if (p != null) {
@@ -111,7 +111,7 @@ public class MGXCWLJob extends JobI {
 
     @Override
     public void failed() {
-        Logger.getLogger(MGXCWLJob.class.getName()).log(Level.INFO, "Job failed, removing partial results");
+        Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.INFO, "Job failed, removing partial results");
 
         try (Connection conn = getProjectConnection()) {
 
@@ -154,7 +154,7 @@ public class MGXCWLJob extends JobI {
                 stmt.execute();
             }
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -178,7 +178,7 @@ public class MGXCWLJob extends JobI {
             conn.commit();
             conn.setAutoCommit(true);
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -194,7 +194,7 @@ public class MGXCWLJob extends JobI {
                 numRows = stmt.executeUpdate();
             }
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
         }
 
@@ -211,7 +211,7 @@ public class MGXCWLJob extends JobI {
                 numRows = stmt.executeUpdate();
             }
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex.getMessage());
         }
         if (numRows != 1) {
@@ -253,7 +253,7 @@ public class MGXCWLJob extends JobI {
 
         JobState dbState = getState();
         if (dbState != state) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.INFO, "DB inconsistent, expected {0}, got {1}", new Object[]{state, dbState});
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.INFO, "DB inconsistent, expected {0}, got {1}", new Object[]{state, dbState});
             throw new JobException("DB inconsistent, expected " + state + ", got " + dbState);
         }
     }
@@ -273,7 +273,7 @@ public class MGXCWLJob extends JobI {
                 }
             }
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex);
             throw new JobException(ex);
         }
         return JobState.values()[state];
@@ -311,7 +311,7 @@ public class MGXCWLJob extends JobI {
                 stmt.execute();
             }
         } catch (SQLException | MGXDispatcherException ex) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -328,7 +328,7 @@ public class MGXCWLJob extends JobI {
                 s.close();
             }
         } catch (SQLException ex) {
-            Logger.getLogger(MGXCWLJob.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MGX2CWLJob.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 

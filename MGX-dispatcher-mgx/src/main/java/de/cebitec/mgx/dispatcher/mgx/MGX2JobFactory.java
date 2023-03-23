@@ -97,7 +97,7 @@ public class MGX2JobFactory implements JobFactoryI {
             return new MGX2ConveyorJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
                     getMGXPersistentDir(), cp, loader, projName, jobId);
         } else if (workflowFile.endsWith(".cwl")) {
-            return new MGXCWLJob(dispatcher, config.getCWLExecutable(), workflowFile,
+            return new MGX2CWLJob(dispatcher, config.getCWLExecutable(), workflowFile,
                     getMGXPersistentDir(), cp, loader, projName, jobId);
         } else {
             throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");
