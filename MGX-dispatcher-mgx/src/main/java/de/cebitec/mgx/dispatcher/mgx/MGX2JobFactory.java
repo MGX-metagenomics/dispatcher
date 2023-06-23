@@ -12,6 +12,7 @@ import jakarta.annotation.PreDestroy;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Singleton;
 import jakarta.ejb.Startup;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
@@ -40,7 +41,7 @@ public class MGX2JobFactory implements JobFactoryI {
     FactoryHolderI holder;
 
     private final Properties props = new Properties();
-    private final ConnectionProviderI cp = new MGX2ConnectionProvider();
+    private final ConnectionProviderI connProvider = new MGX2ConnectionProvider();
 
     @PostConstruct
     public void init() {
@@ -77,8 +78,11 @@ public class MGX2JobFactory implements JobFactoryI {
 
     @Override
     public JobI createJob(DispatcherI dispatcher, String projName, long jobId) throws MGXDispatcherException {
+        //
+        // obtain workflow definition file from projects database
+        //
         String workflowFile = null;
-        try ( Connection conn = cp.getProjectConnection(loader, projName)) {
+        try ( Connection conn = connProvider.getProjectConnection(loader, projName)) {
             try ( PreparedStatement stmt = conn.prepareStatement(GETWORKFLOW)) {
                 stmt.setLong(1, jobId);
                 try ( ResultSet rs = stmt.executeQuery()) {
@@ -93,12 +97,20 @@ public class MGX2JobFactory implements JobFactoryI {
             Logger.getLogger(MGX2JobFactory.class.getName()).log(Level.SEVERE, null, ex);
             throw new MGXDispatcherException(ex);
         }
+
+        // make sure the workflow file exists
+        File workflowDefinition = new File(workflowFile);
+        if (workflowFile == null || !workflowDefinition.exists() || !workflowDefinition.canRead()) {
+            throw new MGXDispatcherException("Unable to read file: " + workflowFile);
+        }
+
         if (workflowFile.endsWith(".xml")) {
             return new MGX2ConveyorJob(dispatcher, config.getConveyorExecutable(), config.getValidatorExecutable(),
-                    getMGXPersistentDir(), cp, loader, projName, jobId);
+                    workflowDefinition,
+                    getMGXPersistentDir(), connProvider, loader, projName, jobId);
         } else if (workflowFile.endsWith(".cwl")) {
-            return new MGX2CWLJob(dispatcher, config.getCWLExecutable(), workflowFile,
-                    getMGXPersistentDir(), cp, loader, projName, jobId);
+            return new MGX2CWLJob(dispatcher, config.getCWLExecutable(), workflowDefinition,
+                    getMGXPersistentDir(), connProvider, loader, projName, jobId);
         } else {
             throw new MGXDispatcherException("Unrecognized workflow definition file: " + workflowFile + ".");
         }

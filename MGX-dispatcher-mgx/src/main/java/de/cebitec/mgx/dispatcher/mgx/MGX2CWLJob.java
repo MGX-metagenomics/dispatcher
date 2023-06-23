@@ -22,7 +22,7 @@ public class MGX2CWLJob extends JobI {
 
     // project-specific job id
     private final String cwlTool;
-    private final String workflow;
+    private final File workflow;
     private final String persistentDir;
     private final ConnectionProviderI cc;
     private final GPMSDataLoaderI loader;
@@ -30,7 +30,7 @@ public class MGX2CWLJob extends JobI {
 
     public MGX2CWLJob(DispatcherI disp,
             String cwlTool,
-            String workflow,
+            File workflow,
             String persistentDir,
             ConnectionProviderI cc, GPMSDataLoaderI loader, String projName,
             long mgxJobId) throws MGXDispatcherException {
@@ -53,7 +53,7 @@ public class MGX2CWLJob extends JobI {
 
         String[] commands = new String[4];
         commands[0] = cwlTool;
-        commands[1] = workflow;
+        commands[1] = workflow.getAbsolutePath();
         commands[2] = getProjectName();
         commands[3] = String.valueOf(getProjectJobID());
 
@@ -182,10 +182,6 @@ public class MGX2CWLJob extends JobI {
         }
     }
 
-//    @Override
-//    public String getConveyorGraph() {
-//        return conveyorGraph;
-//    }
     private void setStartDate() throws JobException {
         int numRows = 0;
         try (Connection conn = getProjectConnection()) {
@@ -304,8 +300,9 @@ public class MGX2CWLJob extends JobI {
             stderr.delete();
         }
 
+        // set finished state, remove api key
         try (Connection conn = getProjectConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
+            try (PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, apikey=NULL, finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, JobState.FINISHED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
@@ -338,7 +335,8 @@ public class MGX2CWLJob extends JobI {
     }
 
     @Override
-    public boolean validate() throws JobException {
+    public boolean validate() {
+        // currently, cwl workflow validation is not supported
         return true;
     }
 

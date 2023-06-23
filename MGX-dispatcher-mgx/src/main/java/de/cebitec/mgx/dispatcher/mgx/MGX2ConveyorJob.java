@@ -28,7 +28,7 @@ import java.util.logging.Logger;
 public class MGX2ConveyorJob extends JobI {
 
     // project-specific job id
-    private final String conveyorGraph;
+    private final File conveyorGraph;
     private final String persistentDir;
     private final String conveyorValidate;
     private final String conveyorExecutable;
@@ -38,6 +38,7 @@ public class MGX2ConveyorJob extends JobI {
 
     public MGX2ConveyorJob(DispatcherI disp,
             String conveyorExec, String conveyorValidate,
+            File workflowDefinition,
             String persistentDir,
             ConnectionProviderI cc, GPMSDataLoaderI loader, String projName,
             long mgxJobId) throws MGXDispatcherException {
@@ -48,7 +49,7 @@ public class MGX2ConveyorJob extends JobI {
         this.persistentDir = persistentDir;
         this.cc = cc;
         this.loader = loader;
-        conveyorGraph = lookupGraphFile(mgxJobId);
+        conveyorGraph = workflowDefinition;
     }
 
     @Override
@@ -61,7 +62,7 @@ public class MGX2ConveyorJob extends JobI {
 
         String[] commands = new String[4];
         commands[0] = conveyorExecutable;
-        commands[1] = conveyorGraph;
+        commands[1] = conveyorGraph.getAbsolutePath();
         commands[2] = getProjectName();
         commands[3] = String.valueOf(getProjectJobID());
 
@@ -311,26 +312,6 @@ public class MGX2ConveyorJob extends JobI {
         return JobState.values()[state];
     }
 
-    private String lookupGraphFile(long jobId) throws MGXDispatcherException {
-        String file = null;
-        String sql = "SELECT Tool.file FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
-
-        try ( Connection conn = getProjectConnection()) {
-            try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, jobId);
-                try ( ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        file = rs.getString(1);
-                    }
-                }
-            }
-        } catch (SQLException ex) {
-            Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-        return file;
-    }
-
     private ToolScope getToolScope(long jobId) throws MGXDispatcherException {
         ToolScope scope = null;
         String sql = "SELECT Tool.scope FROM Job LEFT JOIN Tool ON (Job.tool_id=Tool.id) WHERE Job.id=?";
@@ -346,6 +327,7 @@ public class MGX2ConveyorJob extends JobI {
             }
         } catch (SQLException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
+            throw new MGXDispatcherException(ex.getMessage());
         }
 
         return scope;
@@ -437,8 +419,9 @@ public class MGX2ConveyorJob extends JobI {
             stderr.delete();
         }
 
+        // set job to finished state and remove api key
         try ( Connection conn = getProjectConnection()) {
-            try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, apikey=NULL, finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, JobState.FINISHED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
@@ -477,6 +460,7 @@ public class MGX2ConveyorJob extends JobI {
             scope = getToolScope(getProjectJobID());
         } catch (MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
+            throw new JobException(ex.getMessage());
         }
 
         List<String> ret = new ArrayList<>();
@@ -549,15 +533,10 @@ public class MGX2ConveyorJob extends JobI {
             throw new JobException("Unable to access Conveyor executable " + conveyorValidate);
         }
 
-        File graph = new File(conveyorGraph);
-        if (!graph.canRead()) {
-            throw new JobException("Cannot read workflow file " + conveyorGraph);
-        }
-
         // build up command string
         String[] commands = new String[4];
         commands[0] = conveyorValidate;
-        commands[1] = conveyorGraph;
+        commands[1] = conveyorGraph.getAbsolutePath();
         commands[2] = getProjectName();
         commands[3] = String.valueOf(getProjectJobID());
 
