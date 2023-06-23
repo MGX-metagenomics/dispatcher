@@ -254,6 +254,7 @@ public class MGX2ConveyorJob extends JobI {
 
     @Override
     public synchronized void setState(JobState state) throws JobException {
+        Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "Setting job {0} to state {1}", new Object[]{getProjectJobID(), state});
         //Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "{0}/{1}: state change {2} to {3}", new Object[]{projectName, mgxJobId, getState(), state});
         String sql = "UPDATE job SET job_state=? WHERE id=? RETURNING job_state";
         try ( Connection conn = getProjectConnection()) {
@@ -347,11 +348,10 @@ public class MGX2ConveyorJob extends JobI {
         }
 
         try ( Connection conn = getProjectConnection()) {
-            // set the job to finished state
-            conn.setAutoCommit(false);
 
             switch (scope) {
                 case READ:
+                    Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, "Generating read observation summary counts for job {0}.", getProjectJobID());
                     // create assignment counts for attributes belonging to this job
                     String sql = "INSERT INTO attributecount "
                             + "SELECT attribute.id, read.seqrun_id, count(attribute.id) FROM attribute "
@@ -367,6 +367,7 @@ public class MGX2ConveyorJob extends JobI {
                     // noop
                     break;
                 case GENE_ANNOTATION:
+                    Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, "Generating gene observation summary counts for job {0}.", getProjectJobID());
                     // create assignment counts for attributes belonging to this job
                     String sql2 = "INSERT INTO attributecount "
                             + "SELECT attribute.id, gene_coverage.run_id, sum(gene_coverage.coverage) FROM attribute "
@@ -386,8 +387,6 @@ public class MGX2ConveyorJob extends JobI {
                     break;
             }
 
-            conn.commit();
-            conn.setAutoCommit(true);
         } catch (SQLException | MGXDispatcherException ex) {
             Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex);
             try {
@@ -395,6 +394,7 @@ public class MGX2ConveyorJob extends JobI {
             } catch (JobException ex1) {
                 Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.SEVERE, null, ex1);
             }
+            return;
         }
 
         /*

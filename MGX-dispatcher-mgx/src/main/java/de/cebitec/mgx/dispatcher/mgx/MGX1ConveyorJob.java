@@ -345,6 +345,7 @@ public class MGX1ConveyorJob extends JobI {
             } catch (JobException ex1) {
                 Logger.getLogger(MGX1ConveyorJob.class.getName()).log(Level.SEVERE, null, ex1);
             }
+            return;
         }
 
         /*
@@ -370,7 +371,7 @@ public class MGX1ConveyorJob extends JobI {
         }
 
         try ( Connection conn = getProjectConnection()) {
-            try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, finishdate=NOW() WHERE id=?")) {
+            try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, apikey=NULL, finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, JobState.FINISHED.ordinal());
                 stmt.setLong(2, getProjectJobID());
                 stmt.execute();
