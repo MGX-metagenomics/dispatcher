@@ -420,6 +420,7 @@ public class MGX2ConveyorJob extends JobI {
         }
 
         // set job to finished state and remove api key
+        Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "Setting job {0} to state {1}", new Object[]{getProjectJobID(), JobState.FINISHED});
         try ( Connection conn = getProjectConnection()) {
             try ( PreparedStatement stmt = conn.prepareStatement("UPDATE job SET job_state=?, apikey=NULL, finishdate=NOW() WHERE id=?")) {
                 stmt.setLong(1, JobState.FINISHED.ordinal());
