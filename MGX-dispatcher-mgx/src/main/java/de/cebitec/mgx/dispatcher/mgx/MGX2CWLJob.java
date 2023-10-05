@@ -217,6 +217,7 @@ public class MGX2CWLJob extends JobI {
 
     @Override
     public synchronized void setState(JobState state) throws JobException {
+        Logger.getLogger(MGX2ConveyorJob.class.getName()).log(Level.INFO, "Setting MGX2 CWL job {0} to state {1}", new Object[]{getProjectJobID(), state});
         //Logger.getLogger(MGXJob.class.getName()).log(Level.INFO, "{0}/{1}: state change {2} to {3}", new Object[]{projectName, mgxJobId, getState(), state});
         String sql = "UPDATE job SET job_state=? WHERE id=? RETURNING job_state";
         try (Connection conn = getProjectConnection()) {

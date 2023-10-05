@@ -12,9 +12,6 @@ public abstract class JobI implements Runnable {
 
     public static final int DEFAULT_PRIORITY = 500;
 
-//    public JobI(Dispatcher d) {
-//        this(d, DEFAULT_PRIORITY);
-//    }
     public JobI(DispatcherI d, long projJobId, String projName, int prio) {
         dispatcher = d;
         projectJobId = projJobId;
