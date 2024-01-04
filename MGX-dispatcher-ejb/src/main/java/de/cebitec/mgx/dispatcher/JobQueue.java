@@ -1,10 +1,12 @@
 package de.cebitec.mgx.dispatcher;
 
+import de.cebitec.mgx.common.JobState;
 import de.cebitec.mgx.dispatcher.api.JobQueueI;
 import de.cebitec.mgx.dispatcher.api.DispatcherConfigurationI;
 import de.cebitec.mgx.dispatcher.api.DispatcherI;
 import de.cebitec.mgx.dispatcher.api.JobI;
 import de.cebitec.mgx.dispatcher.api.FactoryHolderI;
+import de.cebitec.mgx.dispatcher.api.JobException;
 import de.cebitec.mgx.dispatcher.common.api.MGXDispatcherException;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Singleton;
@@ -113,20 +115,32 @@ public class JobQueue implements JobQueueI {
     public synchronized JobI nextJob() throws MGXDispatcherException {
 
         JobI job = null;
+        int id = -1;
 
-        String sql = "SELECT project, projectClass, projectJobID FROM jobqueue ORDER BY priority DESC";
+        String sql = "SELECT id, project, projectClass, projectJobID FROM jobqueue ORDER BY priority DESC";
         try ( PreparedStatement stmt = jobqueue.prepareStatement(sql)) {
             try ( ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    String projName = rs.getString(1);
-                    String projClass = rs.getString(2);
-                    long projectJobId = rs.getLong(3);
+                    id = rs.getInt(1);
+                    String projName = rs.getString(2);
+                    String projClass = rs.getString(3);
+                    long projectJobId = rs.getLong(4);
 
                     if (factories.supported(projClass)) {
                         job = factories.createJob(dispatcher, projClass, projName, projectJobId);
+
+                        try {
+                            // this should not happen
+                            if (job != null && job.getState() == JobState.FINISHED) {
+                                log("Job ID " + projectJobId + " is already in FINISHED state, ignoring..");
+                                job = null;
+                            }
+                        } catch (JobException jex) {
+                            log(jex.getMessage());
+                        }
                         break;
                     } else {
-                        log("Unsupported project class " + projClass + ", skipping job " + projectJobId + " in project " + projName);
+                        log("Unsupported project class " + projClass + ", removing job " + projectJobId + " in project " + projName + " from queue.");
                     }
                 }
             }
@@ -134,12 +148,16 @@ public class JobQueue implements JobQueueI {
             log(ex.getMessage());
         }
 
-        if (job != null) {
-            // delete dispatcher queue entry
-            String sql2 = "DELETE FROM jobqueue WHERE project=? AND projectJobID=?";
+        //
+        // always delete the corresponding dispatcher queue entry; otherwise, an 
+        // unhandled job would stay in the queue forever (and be picked up first
+        // every time nextJob() is invoked, thereby stalling the dispatcher
+        // from doing anything useful)
+        //
+        if (id != -1) {
+            String sql2 = "DELETE FROM jobqueue WHERE id=?";
             try ( PreparedStatement stmt2 = jobqueue.prepareStatement(sql2)) {
-                stmt2.setString(1, job.getProjectName());
-                stmt2.setLong(2, job.getProjectJobID());
+                stmt2.setInt(1, id);
                 stmt2.executeUpdate();
             } catch (SQLException ex) {
                 log(ex.getMessage());
